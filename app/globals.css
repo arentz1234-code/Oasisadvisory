@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-navy text-soft font-sans;
+  }
+
+  ::selection {
+    @apply bg-accent/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-navy-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-accent/40 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-accent/60;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-400 via-accent to-accent-700 bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply backdrop-blur-md bg-navy/80 border border-white/5;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-sm bg-navy-50/50 border border-white/5 rounded-2xl;
+  }
+
+  .glow-border {
+    position: relative;
+  }
+
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(135deg, #2563EB20, transparent, #3B82F610);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .glow-border:hover::before {
+    opacity: 1;
+  }
+
+  .btn-primary {
+    @apply px-8 py-4 bg-accent text-white font-semibold rounded-full
+           transition-all duration-300 ease-out
+           hover:bg-accent-500 hover:shadow-lg hover:shadow-accent/25
+           focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-navy
+           active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 border border-accent/30 text-accent rounded-full
+           transition-all duration-300 ease-out
+           hover:bg-accent/10 hover:border-accent/50
+           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-navy;
+  }
+
+  .section-padding {
+    @apply py-24 md:py-32 lg:py-40;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-6 lg:px-8;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Gradient orb animation - blue version */
+.gradient-orb {
+  background: radial-gradient(circle at center, #2563EB30 0%, #3B82F610 40%, transparent 70%);
+  filter: blur(60px);
+  animation: float 8s ease-in-out infinite, glow 4s ease-in-out infinite alternate;
+}
+
+/* Grid pattern overlay */
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.015;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Calendly embed styling */
+#calendly-embed {
+  min-height: 650px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Logo ring gradient animation */
+.logo-ring {
+  background: conic-gradient(from 180deg, #1D4ED8, #3B82F6, #60A5FA, #3B82F6, #1D4ED8);
+}
