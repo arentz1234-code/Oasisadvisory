@@ -35,18 +35,6 @@ function AnimatedSection({
   )
 }
 
-const IconEmail = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-  </svg>
-)
-
-const IconCheck = () => (
-  <svg className="w-5 h-5 text-accent flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-  </svg>
-)
-
 const IconChevronLeft = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -56,6 +44,33 @@ const IconChevronLeft = () => (
 const IconChevronRight = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+)
+
+const IconClock = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v6l4 2" />
+  </svg>
+)
+
+const IconVideo = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M23 7l-7 5 7 5V7z" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+  </svg>
+)
+
+const IconDollar = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+  </svg>
+)
+
+const IconMail = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
   </svg>
 )
 
@@ -79,7 +94,6 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots()
 
-// Get the start of the current week (Sunday)
 function getWeekStart(date: Date) {
   const d = new Date(date)
   const day = d.getDay()
@@ -88,7 +102,6 @@ function getWeekStart(date: Date) {
   return d
 }
 
-// Get 2 weeks of dates starting from current week
 function getCalendarDates(weekOffset: number = 0) {
   const today = new Date()
   const weekStart = getWeekStart(today)
@@ -136,23 +149,18 @@ function isWeekend(date: Date) {
   return day === 0 || day === 6
 }
 
-const expectations = [
-  'A friendly, no-pressure conversation',
-  'Understanding of your current challenges',
-  'Initial assessment of AI opportunities',
-  'Clear next steps (if there\'s a fit)',
-]
-
 export default function BookPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [bookingComplete, setBookingComplete] = useState(false)
-  const [formData, setFormData] = useState({ name: '', email: '', company: '', message: '' })
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', businessName: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [bookingError, setBookingError] = useState<string | null>(null)
 
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
-  const currentMonth = formatMonthYear(calendarDates[3]) // Middle of week for month name
+  const currentMonth = formatMonthYear(calendarDates[3])
 
   const handleDateSelect = (date: Date) => {
     if (isPast(date) || isWeekend(date)) return
@@ -166,17 +174,13 @@ export default function BookPage() {
     setShowForm(true)
   }
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [meetLink, setMeetLink] = useState<string | null>(null)
-  const [bookingError, setBookingError] = useState<string | null>(null)
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setBookingError(null)
 
     try {
-      const response = await fetch('/api/book', {
+      const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,7 +196,6 @@ export default function BookPage() {
         throw new Error(data.error || 'Failed to book')
       }
 
-      setMeetLink(data.meetLink)
       setBookingComplete(true)
     } catch (error) {
       console.error('Booking error:', error)
@@ -207,9 +210,8 @@ export default function BookPage() {
     setSelectedTime(null)
     setShowForm(false)
     setBookingComplete(false)
-    setMeetLink(null)
     setBookingError(null)
-    setFormData({ name: '', email: '', company: '', message: '' })
+    setFormData({ name: '', email: '', phone: '', businessName: '' })
   }
 
   return (
@@ -242,31 +244,9 @@ export default function BookPage() {
                 <p className="text-soft-muted mb-2">
                   {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {selectedTime} EST
                 </p>
-                {meetLink ? (
-                  <div className="mb-6">
-                    <p className="text-soft-muted text-sm mb-3">
-                      Your Google Meet link:
-                    </p>
-                    <a
-                      href={meetLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 rounded-lg text-accent hover:bg-accent/20 transition-colors"
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0C6.48 0 2 4.48 2 10c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 18.16 22 14.42 22 10 22 4.48 17.52 0 12 0z"/>
-                      </svg>
-                      Join Google Meet
-                    </a>
-                    <p className="text-soft-muted text-xs mt-3">
-                      A calendar invite has been sent to your email.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-soft-muted text-sm mb-6">
-                    We&apos;ll send a confirmation email with the meeting link shortly.
-                  </p>
-                )}
+                <p className="text-soft-muted text-sm mb-6">
+                  We&apos;ll send a confirmation email to {formData.email} with the meeting details.
+                </p>
                 <button onClick={resetBooking} className="btn-secondary">
                   Book Another Time
                 </button>
@@ -428,20 +408,23 @@ export default function BookPage() {
                             placeholder="Email *"
                           />
                         </div>
-                        <input
-                          type="text"
-                          value={formData.company}
-                          onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
-                          placeholder="Company (optional)"
-                        />
-                        <textarea
-                          rows={2}
-                          value={formData.message}
-                          onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors resize-none text-sm"
-                          placeholder="What would you like to discuss? (optional)"
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="tel"
+                            required
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
+                            placeholder="Phone *"
+                          />
+                          <input
+                            type="text"
+                            value={formData.businessName}
+                            onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
+                            placeholder="Business Name"
+                          />
+                        </div>
                         {bookingError && (
                           <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                             {bookingError}
@@ -458,7 +441,7 @@ export default function BookPage() {
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                               </svg>
-                              Creating Google Meet...
+                              Booking...
                             </span>
                           ) : (
                             'Confirm Booking'
@@ -475,15 +458,15 @@ export default function BookPage() {
 
         {/* Info below calendar */}
         <AnimatedSection className="mt-8 max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: '🕐', text: '30 minutes' },
-              { icon: '📹', text: 'Video call' },
-              { icon: '💰', text: '100% free' },
-              { icon: '📧', text: 'oasisadvisoryteam@gmail.com' },
+              { icon: IconClock, text: '30 minutes' },
+              { icon: IconVideo, text: 'Video call' },
+              { icon: IconDollar, text: '100% free' },
+              { icon: IconMail, text: 'oasisadvisoryteam@gmail.com' },
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-center gap-2 text-soft-muted text-sm">
-                <span>{item.icon}</span>
+              <div key={i} className="flex items-center justify-center gap-2 text-soft-muted text-sm p-3 rounded-lg bg-navy-50/30">
+                <item.icon />
                 <span>{item.text}</span>
               </div>
             ))}

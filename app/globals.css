@@ -38,7 +38,7 @@
 
 @layer components {
   .gradient-text {
-    @apply bg-gradient-to-r from-accent-400 via-accent to-accent-700 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-accent-400 via-accent to-accent-600 bg-clip-text text-transparent;
   }
 
   .glass {
@@ -57,7 +57,7 @@
     content: '';
     position: absolute;
     inset: -1px;
-    background: linear-gradient(135deg, #2563EB20, transparent, #3B82F610);
+    background: linear-gradient(135deg, #4171b520, transparent, #5a8fd410);
     border-radius: inherit;
     z-index: -1;
     opacity: 0;
@@ -71,7 +71,7 @@
   .btn-primary {
     @apply px-8 py-4 bg-accent text-white font-semibold rounded-full
            transition-all duration-300 ease-out
-           hover:bg-accent-500 hover:shadow-lg hover:shadow-accent/25
+           hover:bg-accent-400 hover:shadow-lg hover:shadow-accent/25
            focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-navy
            active:scale-[0.98];
   }
@@ -98,9 +98,9 @@
   }
 }
 
-/* Gradient orb animation - blue version */
+/* Gradient orb animation */
 .gradient-orb {
-  background: radial-gradient(circle at center, #2563EB30 0%, #3B82F610 40%, transparent 70%);
+  background: radial-gradient(circle at center, #4171b530 0%, #5a8fd410 40%, transparent 70%);
   filter: blur(60px);
   animation: float 8s ease-in-out infinite, glow 4s ease-in-out infinite alternate;
 }
@@ -108,8 +108,8 @@
 /* Grid pattern overlay */
 .grid-pattern {
   background-image:
-    linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(65, 113, 181, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(65, 113, 181, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -128,14 +128,7 @@
   z-index: 1;
 }
 
-/* Calendly embed styling */
-#calendly-embed {
-  min-height: 650px;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-/* Logo ring gradient animation */
+/* Logo ring gradient */
 .logo-ring {
-  background: conic-gradient(from 180deg, #1D4ED8, #3B82F6, #60A5FA, #3B82F6, #1D4ED8);
+  background: conic-gradient(from 180deg, #1e3a5f, #4171b5, #5a8fd4, #4171b5, #1e3a5f);
 }

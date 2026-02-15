@@ -27,6 +27,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# Bookings data (contains user info)
+bookings.json
+
 # Vercel
 .vercel
 

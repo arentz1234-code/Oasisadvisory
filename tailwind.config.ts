@@ -9,39 +9,45 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Updated to match logo blues
+        // Updated to match logo colors
         navy: {
-          DEFAULT: '#0A0F1C',
-          50: '#1a2035',
-          100: '#151a2e',
-          200: '#101524',
-          300: '#0d1220',
-          400: '#0A0F1C',
-          500: '#080c17',
-          600: '#060912',
-          700: '#04060d',
-          800: '#020308',
-          900: '#000003',
+          DEFAULT: '#0f172a',
+          50: '#1e293b',
+          100: '#1a2540',
+          200: '#162035',
+          300: '#121b2e',
+          400: '#0f172a',
+          500: '#0c1322',
+          600: '#090f1a',
+          700: '#060b12',
+          800: '#03070a',
+          900: '#000102',
         },
-        // Blue accent colors from logo
+        // Primary blue from logo "ASIS" text
+        primary: {
+          DEFAULT: '#1e3a5f',
+          light: '#2a4a73',
+          dark: '#152d4a',
+        },
+        // Accent blue from logo "ADVISORY" text and ring
         accent: {
-          DEFAULT: '#2563EB', // Primary blue
-          light: '#3B82F6',   // Lighter blue
-          dark: '#1D4ED8',    // Darker blue
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB',
-          700: '#1D4ED8',
-          800: '#1E40AF',
-          900: '#1E3A8A',
+          DEFAULT: '#4171b5',
+          light: '#5a8fd4',
+          dark: '#2d5a9e',
+          50: '#e8f1fb',
+          100: '#d1e3f7',
+          200: '#a3c7ef',
+          300: '#75abe7',
+          400: '#5a8fd4',
+          500: '#4171b5',
+          600: '#2d5a9e',
+          700: '#1e3a5f',
+          800: '#152d4a',
+          900: '#0c1f35',
         },
         soft: {
-          DEFAULT: '#E8ECF1',
-          muted: '#9CA3AF',
+          DEFAULT: '#e2e8f0',
+          muted: '#94a3b8',
         },
       },
       fontFamily: {
@@ -50,8 +56,8 @@ const config: Config = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'mesh-gradient': 'linear-gradient(135deg, #0A0F1C 0%, #1a2035 50%, #0A0F1C 100%)',
-        'blue-gradient': 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 50%, #60A5FA 100%)',
+        'mesh-gradient': 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+        'blue-gradient': 'linear-gradient(135deg, #1e3a5f 0%, #4171b5 50%, #5a8fd4 100%)',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
