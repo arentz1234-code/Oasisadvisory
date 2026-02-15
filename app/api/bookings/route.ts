@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // Note: This won't persist between serverless function invocations
 // but allows the booking form to work and logs bookings
 let memoryBookings: Booking[] = []
+let memoryBlockedSlots: BlockedSlot[] = []
 
 // Try to use Redis if configured
 let redis: any = null
@@ -20,6 +21,14 @@ try {
 }
 
 const BOOKINGS_KEY = 'oasis:bookings'
+const BLOCKED_KEY = 'oasis:blocked'
+
+interface BlockedSlot {
+  id: string
+  date: string
+  time?: string // If no time, entire day is blocked
+  createdAt: string
+}
 
 interface Booking {
   id: string
@@ -61,6 +70,32 @@ async function saveBookings(bookings: Booking[]) {
   }
 }
 
+async function getBlockedSlots(): Promise<BlockedSlot[]> {
+  try {
+    if (redis) {
+      const blocked = await redis.get(BLOCKED_KEY)
+      return blocked || []
+    }
+    return memoryBlockedSlots
+  } catch (error) {
+    console.error('Error reading blocked slots:', error)
+    return memoryBlockedSlots
+  }
+}
+
+async function saveBlockedSlots(blocked: BlockedSlot[]) {
+  try {
+    if (redis) {
+      await redis.set(BLOCKED_KEY, blocked)
+    } else {
+      memoryBlockedSlots = blocked
+    }
+  } catch (error) {
+    console.error('Error saving blocked slots:', error)
+    memoryBlockedSlots = blocked
+  }
+}
+
 // Send email notification for new bookings
 async function sendNotification(booking: Booking) {
   // Log the booking details (visible in Vercel function logs)
@@ -81,16 +116,21 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const bookedOnly = searchParams.get('booked') === 'true'
 
-  // Public endpoint: just return booked slots (date + time only)
+  // Public endpoint: just return booked and blocked slots (date + time only)
   if (bookedOnly) {
     const bookings = await getBookings()
+    const blocked = await getBlockedSlots()
     const bookedSlots = bookings
       .filter(b => b.status !== 'cancelled')
       .map(b => ({
         date: b.date.split('T')[0], // Just the date part
         time: b.time,
       }))
-    return NextResponse.json({ bookedSlots })
+    const blockedSlots = blocked.map(b => ({
+      date: b.date,
+      time: b.time,
+    }))
+    return NextResponse.json({ bookedSlots, blockedSlots })
   }
 
   // Admin endpoint: requires auth, returns full details
@@ -102,7 +142,8 @@ export async function GET(request: NextRequest) {
   }
 
   const bookings = await getBookings()
-  return NextResponse.json({ bookings, storageType: redis ? 'redis' : 'memory' })
+  const blockedSlots = await getBlockedSlots()
+  return NextResponse.json({ bookings, blockedSlots, storageType: redis ? 'redis' : 'memory' })
 }
 
 // POST - Create a new booking
@@ -155,7 +196,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Update booking status
+// PATCH - Update booking status or block/unblock slots
 export async function PATCH(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -166,8 +207,30 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, status } = body
+    const { id, status, action, date, time } = body
 
+    // Handle block/unblock actions
+    if (action === 'block') {
+      const blocked = await getBlockedSlots()
+      const newBlock: BlockedSlot = {
+        id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        date,
+        time: time || undefined,
+        createdAt: new Date().toISOString(),
+      }
+      blocked.push(newBlock)
+      await saveBlockedSlots(blocked)
+      return NextResponse.json({ success: true, blocked: newBlock })
+    }
+
+    if (action === 'unblock') {
+      const blocked = await getBlockedSlots()
+      const filtered = blocked.filter(b => !(b.date === date && b.time === time))
+      await saveBlockedSlots(filtered)
+      return NextResponse.json({ success: true })
+    }
+
+    // Handle booking status update
     const bookings = await getBookings()
     const index = bookings.findIndex(b => b.id === id)
 
@@ -181,7 +244,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, booking: bookings[index] })
   } catch (error) {
     console.error('Update error:', error)
-    return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
 }
 

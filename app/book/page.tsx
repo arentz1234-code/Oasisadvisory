@@ -128,9 +128,20 @@ function isWeekend(date: Date) {
   return day === 0 || day === 6
 }
 
+// Only allow bookings on Monday (1), Wednesday (3), Friday (5)
+function isAvailableDay(date: Date) {
+  const day = date.getDay()
+  return day === 1 || day === 3 || day === 5
+}
+
 interface BookedSlot {
   date: string
   time: string
+}
+
+interface BlockedSlot {
+  date: string
+  time?: string // If no time, entire day is blocked
 }
 
 export default function BookPage() {
@@ -143,24 +154,26 @@ export default function BookPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
 
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
   const currentMonth = formatMonthYear(calendarDates[3])
 
-  // Fetch booked slots on mount and after booking
+  // Fetch booked and blocked slots on mount and after booking
   useEffect(() => {
-    const fetchBookedSlots = async () => {
+    const fetchSlots = async () => {
       try {
         const response = await fetch('/api/bookings?booked=true')
         if (response.ok) {
           const data = await response.json()
           setBookedSlots(data.bookedSlots || [])
+          setBlockedSlots(data.blockedSlots || [])
         }
       } catch (error) {
-        console.error('Failed to fetch booked slots:', error)
+        console.error('Failed to fetch slots:', error)
       }
     }
-    fetchBookedSlots()
+    fetchSlots()
   }, [bookingComplete]) // Refetch after a booking is made
 
   // Check if a specific date/time is booked
@@ -169,8 +182,16 @@ export default function BookPage() {
     return bookedSlots.some(slot => slot.date === dateStr && slot.time === time)
   }
 
+  // Check if a specific date/time is blocked by admin
+  const isSlotBlocked = (date: Date, time: string) => {
+    const dateStr = date.toISOString().split('T')[0]
+    return blockedSlots.some(slot =>
+      slot.date === dateStr && (!slot.time || slot.time === time)
+    )
+  }
+
   const handleDateSelect = (date: Date) => {
-    if (isPast(date) || isWeekend(date)) return
+    if (isPast(date) || !isAvailableDay(date)) return
     setSelectedDate(date)
     setSelectedTime(null)
     setShowForm(false)
@@ -299,21 +320,23 @@ export default function BookPage() {
 
                   {/* Day headers */}
                   {calendarDates.map((date, i) => {
-                    const weekend = isWeekend(date)
+                    const available = isAvailableDay(date)
+                    const past = isPast(date)
+                    const unavailable = !available || past
                     const today = isToday(date)
                     const selected = selectedDate && isSameDay(date, selectedDate)
 
                     return (
                       <div
                         key={i}
-                        className={`bg-navy p-2 text-center ${weekend ? 'opacity-40' : ''}`}
+                        className={`bg-navy p-2 text-center ${unavailable ? 'opacity-40' : ''}`}
                       >
                         <div className="text-xs text-soft-muted uppercase tracking-wider">
                           {formatDayName(date)}
                         </div>
                         <div
                           className={`text-lg font-semibold mt-1 w-8 h-8 mx-auto flex items-center justify-center rounded-full
-                            ${today ? 'bg-accent text-white' : ''}
+                            ${today && available ? 'bg-accent text-white' : ''}
                             ${selected && !today ? 'bg-accent/20 text-accent' : ''}
                             ${!today && !selected ? 'text-soft' : ''}
                           `}
@@ -334,10 +357,11 @@ export default function BookPage() {
 
                       {/* Day cells */}
                       {calendarDates.map((date, dayIndex) => {
-                        const weekend = isWeekend(date)
+                        const available = isAvailableDay(date)
                         const past = isPast(date)
                         const booked = isSlotBooked(date, slot.time)
-                        const disabled = weekend || past || booked
+                        const blocked = isSlotBlocked(date, slot.time)
+                        const unavailable = !available || past || booked || blocked
                         const selected = selectedDate && isSameDay(date, selectedDate)
                         const timeSelected = selected && selectedTime === slot.time
 
@@ -345,20 +369,20 @@ export default function BookPage() {
                           <div
                             key={`${slotIndex}-${dayIndex}`}
                             className={`bg-navy border-t border-white/5 p-1
-                              ${disabled ? 'opacity-30' : ''}
+                              ${unavailable ? 'opacity-30' : ''}
                             `}
                           >
-                            {!weekend && !past && (
+                            {available && !past && (
                               <button
                                 onClick={() => {
-                                  if (!booked) {
+                                  if (!booked && !blocked) {
                                     handleDateSelect(date)
                                     handleTimeSelect(slot.time)
                                   }
                                 }}
-                                disabled={booked}
+                                disabled={booked || blocked}
                                 className={`w-full h-full min-h-[32px] rounded text-xs transition-all
-                                  ${booked
+                                  ${booked || blocked
                                     ? 'bg-white/5 text-soft-muted/50 cursor-not-allowed line-through'
                                     : timeSelected
                                       ? 'bg-accent text-white'
@@ -366,7 +390,7 @@ export default function BookPage() {
                                   }
                                 `}
                               >
-                                {booked ? 'Booked' : timeSelected ? slot.time : 'Select'}
+                                {blocked ? 'Blocked' : booked ? 'Booked' : timeSelected ? slot.time : 'Select'}
                               </button>
                             )}
                           </div>

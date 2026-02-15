@@ -17,6 +17,51 @@ interface Booking {
   notes?: string
 }
 
+interface BlockedSlot {
+  id: string
+  date: string
+  time?: string
+  createdAt: string
+}
+
+// Generate 30-minute time slots from 9am to 4pm
+function generateTimeSlots() {
+  const slots = []
+  for (let hour = 9; hour < 16; hour++) {
+    for (let min = 0; min < 60; min += 30) {
+      const hour12 = hour > 12 ? hour - 12 : hour
+      const ampm = hour >= 12 ? 'PM' : 'AM'
+      const timeStr = `${hour12}:${min.toString().padStart(2, '0')} ${ampm}`
+      slots.push(timeStr)
+    }
+  }
+  return slots
+}
+
+const timeSlots = generateTimeSlots()
+
+// Only Mon (1), Wed (3), Fri (5) are available
+function isAvailableDay(date: Date) {
+  const day = date.getDay()
+  return day === 1 || day === 3 || day === 5
+}
+
+function getWeekDates(weekOffset: number = 0) {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  const startOfWeek = new Date(today)
+  startOfWeek.setDate(today.getDate() - dayOfWeek + (weekOffset * 7))
+  startOfWeek.setHours(0, 0, 0, 0)
+
+  const dates: Date[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startOfWeek)
+    date.setDate(startOfWeek.getDate() + i)
+    dates.push(date)
+  }
+  return dates
+}
+
 const IconLogout = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
@@ -97,11 +142,14 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [authToken, setAuthToken] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [activeTab, setActiveTab] = useState<'bookings' | 'block'>('bookings')
+  const [blockWeekOffset, setBlockWeekOffset] = useState(0)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,6 +165,7 @@ export default function AdminPage() {
         setIsLoggedIn(true)
         const data = await response.json()
         setBookings(data.bookings || [])
+        setBlockedSlots(data.blockedSlots || [])
       } else {
         setLoginError('Invalid password')
       }
@@ -135,12 +184,49 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json()
         setBookings(data.bookings || [])
+        setBlockedSlots(data.blockedSlots || [])
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const toggleBlockSlot = async (date: string, time?: string) => {
+    const isBlocked = blockedSlots.some(b => b.date === date && b.time === time)
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          action: isBlocked ? 'unblock' : 'block',
+          date,
+          time
+        })
+      })
+      if (response.ok) {
+        fetchBookings()
+      }
+    } catch (error) {
+      console.error('Failed to toggle block:', error)
+    }
+  }
+
+  const isSlotBlocked = (date: string, time: string) => {
+    return blockedSlots.some(b => b.date === date && (!b.time || b.time === time))
+  }
+
+  const isSlotBooked = (date: string, time: string) => {
+    return bookings.some(b =>
+      b.date.split('T')[0] === date &&
+      b.time === time &&
+      b.status !== 'cancelled'
+    )
   }
 
   const updateStatus = async (id: string, status: string) => {
@@ -343,6 +429,32 @@ export default function AdminPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-8">
+          <button
+            onClick={() => setActiveTab('bookings')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'bookings'
+                ? 'bg-accent text-white'
+                : 'bg-white/5 text-soft-muted hover:bg-white/10'
+            }`}
+          >
+            Bookings
+          </button>
+          <button
+            onClick={() => setActiveTab('block')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'block'
+                ? 'bg-accent text-white'
+                : 'bg-white/5 text-soft-muted hover:bg-white/10'
+            }`}
+          >
+            Block Times
+          </button>
+        </div>
+
+        {activeTab === 'bookings' ? (
+          <>
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="glass-card p-4">
@@ -585,6 +697,123 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+          </>
+        ) : (
+          /* Block Times Tab */
+          <div className="glass-card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-soft">Block Time Slots</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBlockWeekOffset(Math.max(0, blockWeekOffset - 1))}
+                  disabled={blockWeekOffset === 0}
+                  className="p-2 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setBlockWeekOffset(0)}
+                  className="px-3 py-1 text-sm text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => setBlockWeekOffset(blockWeekOffset + 1)}
+                  className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <p className="text-soft-muted text-sm mb-4">
+              Click on a time slot to block/unblock it. Only Mon, Wed, Fri are available for booking.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="p-2 text-left text-soft-muted text-xs font-medium">Time</th>
+                    {getWeekDates(blockWeekOffset).map((date, i) => {
+                      const available = isAvailableDay(date)
+                      const dateStr = date.toISOString().split('T')[0]
+                      return (
+                        <th
+                          key={i}
+                          className={`p-2 text-center text-xs font-medium ${
+                            available ? 'text-soft' : 'text-soft-muted/50'
+                          }`}
+                        >
+                          <div>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                          <div className="text-lg">{date.getDate()}</div>
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeSlots.map((time, timeIndex) => (
+                    <tr key={timeIndex}>
+                      <td className="p-2 text-soft-muted text-xs whitespace-nowrap">{time}</td>
+                      {getWeekDates(blockWeekOffset).map((date, dayIndex) => {
+                        const available = isAvailableDay(date)
+                        const dateStr = date.toISOString().split('T')[0]
+                        const blocked = isSlotBlocked(dateStr, time)
+                        const booked = isSlotBooked(dateStr, time)
+
+                        if (!available) {
+                          return (
+                            <td key={dayIndex} className="p-1">
+                              <div className="w-full h-8 bg-white/5 rounded opacity-30" />
+                            </td>
+                          )
+                        }
+
+                        return (
+                          <td key={dayIndex} className="p-1">
+                            <button
+                              onClick={() => !booked && toggleBlockSlot(dateStr, time)}
+                              disabled={booked}
+                              className={`w-full h-8 rounded text-xs font-medium transition-all ${
+                                booked
+                                  ? 'bg-blue-500/20 text-blue-400 cursor-not-allowed'
+                                  : blocked
+                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                              }`}
+                            >
+                              {booked ? 'Booked' : blocked ? 'Blocked' : 'Open'}
+                            </button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-500/20" />
+                <span className="text-soft-muted">Open</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-red-500/20" />
+                <span className="text-soft-muted">Blocked</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-blue-500/20" />
+                <span className="text-soft-muted">Booked</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
