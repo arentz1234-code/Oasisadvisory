@@ -456,22 +456,24 @@ export default function BookPage() {
           </div>
         </AnimatedSection>
 
-        {/* Info below calendar */}
-        <AnimatedSection className="mt-8 max-w-5xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { icon: IconClock, text: '30 minutes' },
-              { icon: IconVideo, text: 'Video call' },
-              { icon: IconDollar, text: '100% free' },
-              { icon: IconMail, text: 'oasisadvisoryteam@gmail.com' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-center gap-2 text-soft-muted text-sm p-3 rounded-lg bg-navy-50/30">
-                <item.icon />
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
-        </AnimatedSection>
+        {/* Info below calendar - only show after time is selected */}
+        {showForm && selectedTime && (
+          <AnimatedSection className="mt-8 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { icon: IconClock, text: '30 minutes' },
+                { icon: IconVideo, text: 'Video call' },
+                { icon: IconDollar, text: '100% free' },
+                { icon: IconMail, text: 'oasisadvisoryteam@gmail.com' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-center gap-2 text-soft-muted text-sm p-3 rounded-lg bg-navy-50/30">
+                  <item.icon />
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </AnimatedSection>
+        )}
       </section>
     </div>
   )

@@ -156,7 +156,7 @@ export default function AboutPage() {
                         alt={member.name}
                         width={96}
                         height={96}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover scale-150"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
