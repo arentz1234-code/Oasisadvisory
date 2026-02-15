@@ -63,9 +63,9 @@ function AnimatedAIGraphic() {
         animate={{
           scale: [1, 1.05, 1],
           boxShadow: [
-            '0 0 20px rgba(65, 113, 181, 0.3)',
-            '0 0 40px rgba(65, 113, 181, 0.5)',
-            '0 0 20px rgba(65, 113, 181, 0.3)',
+            '0 0 20px rgba(59, 130, 246, 0.3)',
+            '0 0 40px rgba(59, 130, 246, 0.5)',
+            '0 0 20px rgba(59, 130, 246, 0.3)',
           ],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
@@ -156,9 +156,9 @@ function AnimatedAIGraphic() {
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 400">
         <defs>
           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(65, 113, 181, 0)" />
-            <stop offset="50%" stopColor="rgba(65, 113, 181, 0.5)" />
-            <stop offset="100%" stopColor="rgba(65, 113, 181, 0)" />
+            <stop offset="0%" stopColor="rgba(59, 130, 246, 0)" />
+            <stop offset="50%" stopColor="rgba(59, 130, 246, 0.5)" />
+            <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
           </linearGradient>
         </defs>
         {[
@@ -466,7 +466,7 @@ function ServicesPreview() {
             >
               <motion.div
                 className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center text-accent mb-6"
-                whileHover={{ scale: 1.1, backgroundColor: 'rgba(65, 113, 181, 0.2)' }}
+                whileHover={{ scale: 1.1, backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
                 transition={{ duration: 0.2 }}
               >
                 <service.icon />

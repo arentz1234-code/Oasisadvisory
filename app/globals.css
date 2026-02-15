@@ -57,7 +57,7 @@
     content: '';
     position: absolute;
     inset: -1px;
-    background: linear-gradient(135deg, #4171b520, transparent, #5a8fd410);
+    background: linear-gradient(135deg, #3B82F620, transparent, #60A5FA10);
     border-radius: inherit;
     z-index: -1;
     opacity: 0;
@@ -100,7 +100,7 @@
 
 /* Gradient orb animation */
 .gradient-orb {
-  background: radial-gradient(circle at center, #4171b530 0%, #5a8fd410 40%, transparent 70%);
+  background: radial-gradient(circle at center, #3B82F630 0%, #60A5FA10 40%, transparent 70%);
   filter: blur(60px);
   animation: float 8s ease-in-out infinite, glow 4s ease-in-out infinite alternate;
 }
@@ -108,8 +108,8 @@
 /* Grid pattern overlay */
 .grid-pattern {
   background-image:
-    linear-gradient(rgba(65, 113, 181, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(65, 113, 181, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -130,5 +130,5 @@
 
 /* Logo ring gradient */
 .logo-ring {
-  background: conic-gradient(from 180deg, #1e3a5f, #4171b5, #5a8fd4, #4171b5, #1e3a5f);
+  background: conic-gradient(from 180deg, #1D4ED8, #3B82F6, #60A5FA, #3B82F6, #1D4ED8);
 }
