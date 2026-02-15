@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState, useMemo, useEffect } from 'react'
 import { motion, useInView } from 'framer-motion'
 
 const fadeUpVariants = {
@@ -159,8 +159,19 @@ export default function BookPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
 
+  const formRef = useRef<HTMLDivElement>(null)
+
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
   const currentMonth = formatMonthYear(calendarDates[3])
+
+  // Auto-scroll to booking form when it appears
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [showForm])
 
   const handleDateSelect = (date: Date) => {
     if (isPast(date) || isWeekend(date)) return
@@ -365,6 +376,7 @@ export default function BookPage() {
                 {/* Selected Time & Form */}
                 {showForm && selectedDate && selectedTime && (
                   <motion.div
+                    ref={formRef}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6 pt-6 border-t border-white/10"
