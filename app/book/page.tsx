@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useMemo, useEffect } from 'react'
+import { useRef, useState, useMemo } from 'react'
 import { motion, useInView } from 'framer-motion'
 
 const fadeUpVariants = {
@@ -47,30 +47,9 @@ const IconChevronRight = () => (
   </svg>
 )
 
-const IconClock = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 6v6l4 2" />
-  </svg>
-)
-
-const IconVideo = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M23 7l-7 5 7 5V7z" />
-    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-  </svg>
-)
-
-const IconDollar = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-  </svg>
-)
-
-const IconMail = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
+const IconClose = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 )
 
@@ -159,19 +138,8 @@ export default function BookPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
 
-  const formRef = useRef<HTMLDivElement>(null)
-
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
   const currentMonth = formatMonthYear(calendarDates[3])
-
-  // Auto-scroll to booking form when it appears
-  useEffect(() => {
-    if (showForm && formRef.current) {
-      setTimeout(() => {
-        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
-    }
-  }, [showForm])
 
   const handleDateSelect = (date: Date) => {
     if (isPast(date) || isWeekend(date)) return
@@ -373,120 +341,112 @@ export default function BookPage() {
                   ))}
                 </div>
 
-                {/* Selected Time & Form */}
-                {showForm && selectedDate && selectedTime && (
-                  <motion.div
-                    ref={formRef}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 pt-6 border-t border-white/10"
-                  >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Selected info */}
-                      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
-                        <h3 className="font-semibold text-soft mb-2">Selected Time</h3>
-                        <p className="text-accent text-lg font-medium">
-                          {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        </p>
-                        <p className="text-soft-muted">{selectedTime} EST</p>
-                        <button
-                          onClick={() => {
-                            setShowForm(false)
-                            setSelectedTime(null)
-                          }}
-                          className="mt-3 text-sm text-soft-muted hover:text-accent transition-colors"
-                        >
-                          Change time
-                        </button>
-                      </div>
-
-                      {/* Form */}
-                      <form onSubmit={handleSubmit} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            required
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
-                            placeholder="Name *"
-                          />
-                          <input
-                            type="email"
-                            required
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
-                            placeholder="Email *"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <input
-                            type="tel"
-                            required
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
-                            placeholder="Phone *"
-                          />
-                          <input
-                            type="text"
-                            value={formData.businessName}
-                            onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                            className="px-4 py-2.5 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm"
-                            placeholder="Business Name"
-                          />
-                        </div>
-                        {bookingError && (
-                          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-                            {bookingError}
-                          </div>
-                        )}
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="btn-primary w-full !py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isSubmitting ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                              </svg>
-                              Booking...
-                            </span>
-                          ) : (
-                            'Confirm Booking'
-                          )}
-                        </button>
-                      </form>
-                    </div>
-                  </motion.div>
-                )}
               </>
             )}
           </div>
         </AnimatedSection>
 
-        {/* Info below calendar - only show after time is selected */}
-        {showForm && selectedTime && (
-          <AnimatedSection className="mt-8 max-w-5xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { icon: IconClock, text: '30 minutes' },
-                { icon: IconVideo, text: 'Video call' },
-                { icon: IconDollar, text: '100% free' },
-                { icon: IconMail, text: 'oasisadvisoryteam@gmail.com' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-center gap-2 text-soft-muted text-sm p-3 rounded-lg bg-navy-50/30">
-                  <item.icon />
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </AnimatedSection>
-        )}
       </section>
+
+      {/* Booking Modal */}
+      {showForm && selectedDate && selectedTime && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => {
+            setShowForm(false)
+            setSelectedTime(null)
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="glass-card p-6 md:p-8 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-soft mb-1">Complete Your Booking</h3>
+                <p className="text-accent font-medium">
+                  {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+                <p className="text-soft-muted text-sm">{selectedTime} EST</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowForm(false)
+                  setSelectedTime(null)
+                }}
+                className="p-2 rounded-lg hover:bg-white/5 text-soft-muted hover:text-soft transition-colors"
+              >
+                <IconClose />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+                placeholder="Name *"
+                autoFocus
+              />
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+                placeholder="Email *"
+              />
+              <input
+                type="tel"
+                required
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+                placeholder="Phone *"
+              />
+              <input
+                type="text"
+                value={formData.businessName}
+                onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+                placeholder="Business Name (optional)"
+              />
+              {bookingError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                  {bookingError}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="btn-primary w-full !py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Booking...
+                  </span>
+                ) : (
+                  'Confirm Booking'
+                )}
+              </button>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   )
 }
