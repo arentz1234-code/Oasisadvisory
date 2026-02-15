@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import Logo from './Logo'
 
 const IconInstagram = () => (
@@ -57,10 +58,16 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-6 border-t border-white/5 text-center">
+        <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-soft-muted/60 text-sm">
             © 2026 Oasis Advisory. All rights reserved.
           </p>
+          <Link
+            href="/admin"
+            className="text-soft-muted/40 hover:text-soft-muted text-xs transition-colors"
+          >
+            Admin
+          </Link>
         </div>
       </div>
     </footer>
