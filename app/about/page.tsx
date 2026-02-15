@@ -154,9 +154,9 @@ export default function AboutPage() {
                       <Image
                         src={member.image}
                         alt={member.name}
-                        width={96}
-                        height={96}
-                        className="w-full h-full object-cover scale-150"
+                        width={200}
+                        height={200}
+                        className="w-full h-full object-cover object-top scale-125"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
