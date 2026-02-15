@@ -74,9 +74,26 @@ async function sendNotification(booking: Booking) {
   console.log('==================')
 }
 
-// GET - Retrieve all bookings (for admin)
+// GET - Retrieve bookings
+// With auth: returns all booking details (for admin)
+// Without auth + ?booked=true: returns just booked date/time slots (for calendar)
 export async function GET(request: NextRequest) {
-  // Check for admin auth
+  const { searchParams } = new URL(request.url)
+  const bookedOnly = searchParams.get('booked') === 'true'
+
+  // Public endpoint: just return booked slots (date + time only)
+  if (bookedOnly) {
+    const bookings = await getBookings()
+    const bookedSlots = bookings
+      .filter(b => b.status !== 'cancelled')
+      .map(b => ({
+        date: b.date.split('T')[0], // Just the date part
+        time: b.time,
+      }))
+    return NextResponse.json({ bookedSlots })
+  }
+
+  // Admin endpoint: requires auth, returns full details
   const authHeader = request.headers.get('authorization')
   const adminPassword = process.env.ADMIN_PASSWORD || 'oasis2024'
 

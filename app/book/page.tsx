@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState, useMemo, useEffect } from 'react'
 import { motion, useInView } from 'framer-motion'
 
 const fadeUpVariants = {
@@ -128,6 +128,11 @@ function isWeekend(date: Date) {
   return day === 0 || day === 6
 }
 
+interface BookedSlot {
+  date: string
+  time: string
+}
+
 export default function BookPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -137,9 +142,32 @@ export default function BookPage() {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', businessName: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
 
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
   const currentMonth = formatMonthYear(calendarDates[3])
+
+  // Fetch booked slots on mount and after booking
+  useEffect(() => {
+    const fetchBookedSlots = async () => {
+      try {
+        const response = await fetch('/api/bookings?booked=true')
+        if (response.ok) {
+          const data = await response.json()
+          setBookedSlots(data.bookedSlots || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch booked slots:', error)
+      }
+    }
+    fetchBookedSlots()
+  }, [bookingComplete]) // Refetch after a booking is made
+
+  // Check if a specific date/time is booked
+  const isSlotBooked = (date: Date, time: string) => {
+    const dateStr = date.toISOString().split('T')[0]
+    return bookedSlots.some(slot => slot.date === dateStr && slot.time === time)
+  }
 
   const handleDateSelect = (date: Date) => {
     if (isPast(date) || isWeekend(date)) return
@@ -308,7 +336,8 @@ export default function BookPage() {
                       {calendarDates.map((date, dayIndex) => {
                         const weekend = isWeekend(date)
                         const past = isPast(date)
-                        const disabled = weekend || past
+                        const booked = isSlotBooked(date, slot.time)
+                        const disabled = weekend || past || booked
                         const selected = selectedDate && isSameDay(date, selectedDate)
                         const timeSelected = selected && selectedTime === slot.time
 
@@ -319,20 +348,25 @@ export default function BookPage() {
                               ${disabled ? 'opacity-30' : ''}
                             `}
                           >
-                            {!disabled && (
+                            {!weekend && !past && (
                               <button
                                 onClick={() => {
-                                  handleDateSelect(date)
-                                  handleTimeSelect(slot.time)
+                                  if (!booked) {
+                                    handleDateSelect(date)
+                                    handleTimeSelect(slot.time)
+                                  }
                                 }}
+                                disabled={booked}
                                 className={`w-full h-full min-h-[32px] rounded text-xs transition-all
-                                  ${timeSelected
-                                    ? 'bg-accent text-white'
-                                    : 'hover:bg-accent/20 text-transparent hover:text-accent'
+                                  ${booked
+                                    ? 'bg-white/5 text-soft-muted/50 cursor-not-allowed line-through'
+                                    : timeSelected
+                                      ? 'bg-accent text-white'
+                                      : 'hover:bg-accent/20 text-transparent hover:text-accent'
                                   }
                                 `}
                               >
-                                {timeSelected ? slot.time : 'Select'}
+                                {booked ? 'Booked' : timeSelected ? slot.time : 'Select'}
                               </button>
                             )}
                           </div>
