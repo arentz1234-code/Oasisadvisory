@@ -176,6 +176,7 @@ export default function BookPage() {
       }
 
       setBookingComplete(true)
+      setShowForm(false)
     } catch (error) {
       console.error('Booking error:', error)
       setBookingError(error instanceof Error ? error.message : 'Failed to book. Please try again.')

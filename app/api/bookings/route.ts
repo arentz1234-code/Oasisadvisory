@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { Redis } from '@upstash/redis'
 
-// Simple file-based storage for bookings
-// In production, use a proper database (Vercel Postgres, Supabase, etc.)
-const BOOKINGS_FILE = join(process.cwd(), 'bookings.json')
+// Initialize Redis client
+// Set up Upstash Redis at https://console.upstash.com and add:
+// UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to your Vercel environment variables
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL || '',
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+})
+
+const BOOKINGS_KEY = 'oasis:bookings'
 
 interface Booking {
   id: string
@@ -19,23 +24,22 @@ interface Booking {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
 }
 
-function getBookings(): Booking[] {
+async function getBookings(): Promise<Booking[]> {
   try {
-    if (existsSync(BOOKINGS_FILE)) {
-      const data = readFileSync(BOOKINGS_FILE, 'utf-8')
-      return JSON.parse(data)
-    }
+    const bookings = await redis.get<Booking[]>(BOOKINGS_KEY)
+    return bookings || []
   } catch (error) {
     console.error('Error reading bookings:', error)
+    return []
   }
-  return []
 }
 
-function saveBookings(bookings: Booking[]) {
+async function saveBookings(bookings: Booking[]) {
   try {
-    writeFileSync(BOOKINGS_FILE, JSON.stringify(bookings, null, 2))
+    await redis.set(BOOKINGS_KEY, bookings)
   } catch (error) {
     console.error('Error saving bookings:', error)
+    throw error
   }
 }
 
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const bookings = getBookings()
+  const bookings = await getBookings()
   return NextResponse.json({ bookings })
 }
 
@@ -81,9 +85,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to storage
-    const bookings = getBookings()
+    const bookings = await getBookings()
     bookings.unshift(booking) // Add to beginning (newest first)
-    saveBookings(bookings)
+    await saveBookings(bookings)
 
     return NextResponse.json({
       success: true,
@@ -112,7 +116,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { id, status } = body
 
-    const bookings = getBookings()
+    const bookings = await getBookings()
     const index = bookings.findIndex(b => b.id === id)
 
     if (index === -1) {
@@ -120,7 +124,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     bookings[index].status = status
-    saveBookings(bookings)
+    await saveBookings(bookings)
 
     return NextResponse.json({ success: true, booking: bookings[index] })
   } catch (error) {
@@ -146,14 +150,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Booking ID required' }, { status: 400 })
     }
 
-    const bookings = getBookings()
+    const bookings = await getBookings()
     const filtered = bookings.filter(b => b.id !== id)
 
     if (filtered.length === bookings.length) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    saveBookings(filtered)
+    await saveBookings(filtered)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete error:', error)
