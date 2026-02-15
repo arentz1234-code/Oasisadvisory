@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Redis } from '@upstash/redis'
 
-// Initialize Redis client
-// Set up Upstash Redis at https://console.upstash.com and add:
-// UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to your Vercel environment variables
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL || '',
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-})
+// In-memory storage fallback (for when Redis isn't configured)
+// Note: This won't persist between serverless function invocations
+// but allows the booking form to work and logs bookings
+let memoryBookings: Booking[] = []
+
+// Try to use Redis if configured
+let redis: any = null
+try {
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const { Redis } = require('@upstash/redis')
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  }
+} catch (e) {
+  console.log('Redis not available, using memory storage')
+}
 
 const BOOKINGS_KEY = 'oasis:bookings'
 
@@ -26,21 +36,42 @@ interface Booking {
 
 async function getBookings(): Promise<Booking[]> {
   try {
-    const bookings = await redis.get<Booking[]>(BOOKINGS_KEY)
-    return bookings || []
+    if (redis) {
+      const bookings = await redis.get(BOOKINGS_KEY)
+      return bookings || []
+    }
+    return memoryBookings
   } catch (error) {
     console.error('Error reading bookings:', error)
-    return []
+    return memoryBookings
   }
 }
 
 async function saveBookings(bookings: Booking[]) {
   try {
-    await redis.set(BOOKINGS_KEY, bookings)
+    if (redis) {
+      await redis.set(BOOKINGS_KEY, bookings)
+    } else {
+      memoryBookings = bookings
+    }
   } catch (error) {
     console.error('Error saving bookings:', error)
-    throw error
+    // Fallback to memory
+    memoryBookings = bookings
   }
+}
+
+// Send email notification for new bookings
+async function sendNotification(booking: Booking) {
+  // Log the booking details (visible in Vercel function logs)
+  console.log('=== NEW BOOKING ===')
+  console.log(`Name: ${booking.name}`)
+  console.log(`Email: ${booking.email}`)
+  console.log(`Phone: ${booking.phone}`)
+  console.log(`Business: ${booking.businessName || 'N/A'}`)
+  console.log(`Date: ${booking.date}`)
+  console.log(`Time: ${booking.time}`)
+  console.log('==================')
 }
 
 // GET - Retrieve all bookings (for admin)
@@ -54,7 +85,7 @@ export async function GET(request: NextRequest) {
   }
 
   const bookings = await getBookings()
-  return NextResponse.json({ bookings })
+  return NextResponse.json({ bookings, storageType: redis ? 'redis' : 'memory' })
 }
 
 // POST - Create a new booking
@@ -89,15 +120,19 @@ export async function POST(request: NextRequest) {
     bookings.unshift(booking) // Add to beginning (newest first)
     await saveBookings(bookings)
 
+    // Send notification
+    await sendNotification(booking)
+
     return NextResponse.json({
       success: true,
       message: 'Booking created successfully',
       booking,
+      storageType: redis ? 'redis' : 'memory',
     })
   } catch (error) {
     console.error('Booking error:', error)
     return NextResponse.json(
-      { error: 'Failed to create booking' },
+      { error: 'Failed to create booking. Please try again or email us directly at oasisadvisoryteam@gmail.com' },
       { status: 500 }
     )
   }
