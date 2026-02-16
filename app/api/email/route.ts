@@ -27,7 +27,7 @@ function getConfirmationEmailHtml(booking: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1a; color: #e2e8f0; margin: 0; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-    <div style="background: linear-gradient(135deg, #14b8a6, #0d9488); padding: 30px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #5B8DEF, #4A7BD4); padding: 30px; text-align: center;">
       <h1 style="color: white; margin: 0; font-size: 24px;">Booking Confirmed!</h1>
     </div>
     <div style="padding: 30px;">
@@ -38,8 +38,8 @@ function getConfirmationEmailHtml(booking: {
         Thank you for booking a consultation with Oasis Advisory! We're looking forward to speaking with you.
       </p>
 
-      <div style="background-color: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-        <h2 style="color: #14b8a6; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
+      <div style="background-color: rgba(91, 141, 239, 0.1); border: 1px solid rgba(91, 141, 239, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #5B8DEF; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
         <p style="color: #e2e8f0; font-size: 18px; margin: 0 0 5px 0; font-weight: 600;">${formattedDate}</p>
         <p style="color: #94a3b8; font-size: 16px; margin: 0;">${booking.time} EST</p>
         <p style="color: #94a3b8; font-size: 14px; margin: 15px 0 0 0;">30-minute consultation</p>
@@ -51,7 +51,7 @@ function getConfirmationEmailHtml(booking: {
 
       ${cancelUrl ? `
       <p style="color: #64748b; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        Need to cancel or reschedule? <a href="${cancelUrl}" style="color: #14b8a6; text-decoration: none;">Click here</a>
+        Need to cancel or reschedule? <a href="${cancelUrl}" style="color: #5B8DEF; text-decoration: none;">Click here</a>
       </p>
       ` : ''}
     </div>
@@ -88,7 +88,7 @@ function getReminderEmailHtml(booking: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1a; color: #e2e8f0; margin: 0; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-    <div style="background: linear-gradient(135deg, #14b8a6, #0d9488); padding: 30px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #5B8DEF, #4A7BD4); padding: 30px; text-align: center;">
       <h1 style="color: white; margin: 0; font-size: 24px;">Reminder: Your Consultation is Tomorrow!</h1>
     </div>
     <div style="padding: 30px;">
@@ -99,15 +99,15 @@ function getReminderEmailHtml(booking: {
         This is a friendly reminder about your upcoming consultation with Oasis Advisory.
       </p>
 
-      <div style="background-color: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-        <h2 style="color: #14b8a6; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
+      <div style="background-color: rgba(91, 141, 239, 0.1); border: 1px solid rgba(91, 141, 239, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #5B8DEF; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
         <p style="color: #e2e8f0; font-size: 18px; margin: 0 0 5px 0; font-weight: 600;">${formattedDate}</p>
         <p style="color: #94a3b8; font-size: 16px; margin: 0;">${booking.time} EST</p>
       </div>
 
       ${booking.meetLink ? `
       <div style="text-align: center; margin-bottom: 30px;">
-        <a href="${booking.meetLink}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6, #0d9488); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+        <a href="${booking.meetLink}" style="display: inline-block; background: linear-gradient(135deg, #5B8DEF, #4A7BD4); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
           Join Meeting
         </a>
       </div>
