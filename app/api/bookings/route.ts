@@ -262,25 +262,88 @@ export async function POST(request: NextRequest) {
 
 // Send confirmation email helper
 async function sendConfirmationEmail(booking: Booking) {
+  const resendApiKey = process.env.RESEND_API_KEY
+  if (!resendApiKey) {
+    console.log('No RESEND_API_KEY - skipping confirmation email')
+    return
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://oasisadvisory.com'
+  const formattedDate = new Date(booking.date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const cancelUrl = booking.cancelToken
+    ? `${baseUrl}/cancel?token=${booking.cancelToken}`
+    : null
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1a; color: #e2e8f0; margin: 0; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+    <div style="background: linear-gradient(135deg, #14b8a6, #0d9488); padding: 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px;">Booking Confirmed!</h1>
+    </div>
+    <div style="padding: 30px;">
+      <p style="color: #e2e8f0; font-size: 16px; margin-bottom: 20px;">
+        Hi ${booking.name},
+      </p>
+      <p style="color: #94a3b8; font-size: 16px; margin-bottom: 30px;">
+        Thank you for booking a consultation with Oasis Advisory! We're looking forward to speaking with you.
+      </p>
+
+      <div style="background-color: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #14b8a6; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
+        <p style="color: #e2e8f0; font-size: 18px; margin: 0 0 5px 0; font-weight: 600;">${formattedDate}</p>
+        <p style="color: #94a3b8; font-size: 16px; margin: 0;">${booking.time} EST</p>
+        <p style="color: #94a3b8; font-size: 14px; margin: 15px 0 0 0;">30-minute consultation</p>
+      </div>
+
+      <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">
+        We'll send you a reminder email before your consultation.
+      </p>
+
+      ${cancelUrl ? `
+      <p style="color: #64748b; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        Need to cancel or reschedule? <a href="${cancelUrl}" style="color: #14b8a6; text-decoration: none;">Click here</a>
+      </p>
+      ` : ''}
+    </div>
+    <div style="background-color: rgba(0,0,0,0.3); padding: 20px; text-align: center;">
+      <p style="color: #64748b; font-size: 13px; margin: 0;">
+        Oasis Advisory - AI Solutions for Small Business
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+
   try {
-    await fetch(`${baseUrl}/api/email`, {
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
-        'x-internal-call': 'true',
       },
       body: JSON.stringify({
-        type: 'confirmation',
-        booking: {
-          name: booking.name,
-          email: booking.email,
-          date: booking.date,
-          time: booking.time,
-          cancelToken: booking.cancelToken,
-        },
+        from: process.env.EMAIL_FROM || 'Oasis Advisory <onboarding@resend.dev>',
+        to: [booking.email],
+        subject: 'Your Oasis Advisory Consultation is Confirmed!',
+        html,
       }),
     })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error('Resend API error:', error)
+    }
   } catch (error) {
     console.error('Email send error:', error)
   }
