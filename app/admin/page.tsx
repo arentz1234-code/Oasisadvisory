@@ -613,35 +613,43 @@ export default function AdminPage() {
     setBookings([])
   }
 
-  const addToGoogleCalendar = async (booking: Booking) => {
-    setCalendarLoading(booking.id)
-    setCalendarSuccess(null)
-
-    try {
-      const response = await fetch('/api/calendar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ booking })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to add to calendar')
-      }
-
-      setCalendarSuccess(booking.id)
-      // Clear success indicator after 3 seconds
-      setTimeout(() => setCalendarSuccess(null), 3000)
-    } catch (error) {
-      console.error('Calendar error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to add to Google Calendar')
-    } finally {
-      setCalendarLoading(null)
+  const addToGoogleCalendar = (booking: Booking) => {
+    // Parse time string like "9:00 AM" to 24h format
+    const parseTime = (timeStr: string) => {
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+      if (!match) return { hour: 9, minute: 0 }
+      let hour = parseInt(match[1], 10)
+      const minute = parseInt(match[2], 10)
+      const period = match[3].toUpperCase()
+      if (period === 'PM' && hour !== 12) hour += 12
+      else if (period === 'AM' && hour === 12) hour = 0
+      return { hour, minute }
     }
+
+    const { hour, minute } = parseTime(booking.time)
+    const startDate = new Date(booking.date)
+    startDate.setHours(hour, minute, 0, 0)
+
+    const endDate = new Date(startDate)
+    endDate.setMinutes(endDate.getMinutes() + 30)
+
+    // Format dates for Google Calendar URL (YYYYMMDDTHHmmss)
+    const formatGoogleDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+    }
+
+    const title = encodeURIComponent(`Oasis Advisory - ${booking.name}`)
+    const details = encodeURIComponent(
+      `Consultation with ${booking.name}${booking.businessName ? ` from ${booking.businessName}` : ''}\n\nEmail: ${booking.email}\nPhone: ${booking.phone}`
+    )
+    const dates = `${formatGoogleDate(startDate)}/${formatGoogleDate(endDate)}`
+
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&ctz=America/New_York`
+
+    window.open(url, '_blank')
+
+    setCalendarSuccess(booking.id)
+    setTimeout(() => setCalendarSuccess(null), 3000)
   }
 
   const exportToCSV = () => {
