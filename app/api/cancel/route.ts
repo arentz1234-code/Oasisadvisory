@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 // Storage functions - duplicated here since we can't import from bookings
 let redis: any = null
 try {
