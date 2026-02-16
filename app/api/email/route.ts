@@ -88,7 +88,7 @@ function getReminderEmailHtml(booking: {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0f1a; color: #e2e8f0; margin: 0; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 30px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #14b8a6, #0d9488); padding: 30px; text-align: center;">
       <h1 style="color: white; margin: 0; font-size: 24px;">Reminder: Your Consultation is Tomorrow!</h1>
     </div>
     <div style="padding: 30px;">
@@ -99,8 +99,8 @@ function getReminderEmailHtml(booking: {
         This is a friendly reminder about your upcoming consultation with Oasis Advisory.
       </p>
 
-      <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-        <h2 style="color: #f59e0b; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
+      <div style="background-color: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+        <h2 style="color: #14b8a6; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 15px 0;">Your Appointment</h2>
         <p style="color: #e2e8f0; font-size: 18px; margin: 0 0 5px 0; font-weight: 600;">${formattedDate}</p>
         <p style="color: #94a3b8; font-size: 16px; margin: 0;">${booking.time} EST</p>
       </div>
