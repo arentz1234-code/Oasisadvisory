@@ -328,3 +328,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete booking' }, { status: 500 })
   }
 }
+// Deployed: Sun Feb 15 22:00:52 CST 2026
