@@ -128,10 +128,10 @@ function isWeekend(date: Date) {
   return day === 0 || day === 6
 }
 
-// Only allow bookings on Monday (1), Wednesday (3), Friday (5)
+// Allow bookings on Monday (1) through Friday (5) - weekdays only
 function isAvailableDay(date: Date) {
   const day = date.getDay()
-  return day === 1 || day === 3 || day === 5
+  return day >= 1 && day <= 5
 }
 
 interface BookedSlot {

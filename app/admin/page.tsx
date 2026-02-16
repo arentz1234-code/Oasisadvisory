@@ -40,10 +40,10 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots()
 
-// Only Mon (1), Wed (3), Fri (5) are available
+// Weekdays (Mon-Fri) are available
 function isAvailableDay(date: Date) {
   const day = date.getDay()
-  return day === 1 || day === 3 || day === 5
+  return day >= 1 && day <= 5
 }
 
 function getWeekDates(weekOffset: number = 0) {
@@ -731,7 +731,7 @@ export default function AdminPage() {
             </div>
 
             <p className="text-soft-muted text-sm mb-4">
-              Click on a time slot to block/unblock it. Only Mon, Wed, Fri are available for booking.
+              Click on a time slot to block/unblock it. Weekdays (Mon-Fri) are available for booking.
             </p>
 
             <div className="overflow-x-auto">
