@@ -12,6 +12,7 @@ interface Booking {
   businessName: string
   date: string
   time: string
+  meetLink?: string
   createdAt: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   notes?: string
@@ -148,6 +149,52 @@ const IconSpinner = () => (
   </svg>
 )
 
+const IconCheckCircle = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+)
+
+const IconXCircle = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </svg>
+)
+
+const IconClock = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
+
+const IconNote = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+)
+
+const IconSearch = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+)
+
+const IconX = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
+
 const statusColors = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   confirmed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -165,12 +212,18 @@ export default function AdminPage() {
   const [authToken, setAuthToken] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [activeTab, setActiveTab] = useState<'bookings' | 'block' | 'settings'>('bookings')
   const [blockWeekOffset, setBlockWeekOffset] = useState(0)
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5])
   const [startHour, setStartHour] = useState<number>(9)
   const [endHour, setEndHour] = useState<number>(16)
+  const [minNoticeHours, setMinNoticeHours] = useState<number>(24)
+  const [bufferMinutes, setBufferMinutes] = useState<number>(15)
+  const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0)
 
   // Drag selection state
   const [isDragging, setIsDragging] = useState(false)
@@ -180,6 +233,10 @@ export default function AdminPage() {
   // Google Calendar state
   const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
   const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null)
+
+  // Email state
+  const [emailLoading, setEmailLoading] = useState<string | null>(null)
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
 
   // Dynamic time slots based on settings
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour])
@@ -208,6 +265,15 @@ export default function AdminPage() {
         if (data.settings?.endHour !== undefined) {
           setEndHour(data.settings.endHour)
         }
+        if (data.settings?.minNoticeHours !== undefined) {
+          setMinNoticeHours(data.settings.minNoticeHours)
+        }
+        if (data.settings?.bufferMinutes !== undefined) {
+          setBufferMinutes(data.settings.bufferMinutes)
+        }
+        if (data.settings?.maxBookingsPerDay !== undefined) {
+          setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
+        }
       } else {
         setLoginError('Invalid password')
       }
@@ -235,6 +301,15 @@ export default function AdminPage() {
         }
         if (data.settings?.endHour !== undefined) {
           setEndHour(data.settings.endHour)
+        }
+        if (data.settings?.minNoticeHours !== undefined) {
+          setMinNoticeHours(data.settings.minNoticeHours)
+        }
+        if (data.settings?.bufferMinutes !== undefined) {
+          setBufferMinutes(data.settings.bufferMinutes)
+        }
+        if (data.settings?.maxBookingsPerDay !== undefined) {
+          setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
         }
       }
     } catch (error) {
@@ -301,6 +376,29 @@ export default function AdminPage() {
 
   // Generate hour options for dropdown
   const hourOptions = Array.from({ length: 15 }, (_, i) => i + 6) // 6 AM to 8 PM
+
+  const updateSchedulingSetting = async (key: string, value: number) => {
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          action: 'updateSettings',
+          [key]: value
+        })
+      })
+      if (response.ok) {
+        if (key === 'minNoticeHours') setMinNoticeHours(value)
+        if (key === 'bufferMinutes') setBufferMinutes(value)
+        if (key === 'maxBookingsPerDay') setMaxBookingsPerDay(value)
+      }
+    } catch (error) {
+      console.error('Failed to update scheduling setting:', error)
+    }
+  }
 
   const isAvailableDay = (date: Date) => {
     return availableDays.includes(date.getDay())
@@ -439,6 +537,67 @@ export default function AdminPage() {
     }
   }
 
+  const saveNotes = async (id: string, notes: string) => {
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ action: 'updateNotes', id, notes })
+      })
+      if (response.ok) {
+        // Update local state
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, notes } : b))
+        if (selectedBooking?.id === id) {
+          setSelectedBooking({ ...selectedBooking, notes })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save notes:', error)
+    }
+  }
+
+  const sendReminderEmail = async (booking: Booking) => {
+    setEmailLoading(booking.id)
+    setEmailSuccess(null)
+
+    try {
+      const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          type: 'reminder',
+          booking: {
+            name: booking.name,
+            email: booking.email,
+            date: booking.date,
+            time: booking.time,
+            meetLink: booking.meetLink,
+          }
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send email')
+      }
+
+      setEmailSuccess(booking.id)
+      setTimeout(() => setEmailSuccess(null), 3000)
+    } catch (error) {
+      console.error('Email error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to send reminder email')
+    } finally {
+      setEmailLoading(null)
+    }
+  }
+
   const handleLogout = () => {
     setIsLoggedIn(false)
     setAuthToken('')
@@ -520,7 +679,34 @@ export default function AdminPage() {
 
   // Filter and sort bookings
   const filteredBookings = bookings
-    .filter(b => filterStatus === 'all' || b.status === filterStatus)
+    .filter(b => {
+      // Status filter
+      if (filterStatus !== 'all' && b.status !== filterStatus) return false
+
+      // Search filter (name, email, business name)
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        const matchesName = b.name.toLowerCase().includes(query)
+        const matchesEmail = b.email.toLowerCase().includes(query)
+        const matchesBusiness = b.businessName?.toLowerCase().includes(query)
+        const matchesPhone = b.phone.includes(query)
+        if (!matchesName && !matchesEmail && !matchesBusiness && !matchesPhone) return false
+      }
+
+      // Date range filter
+      if (dateFrom) {
+        const bookingDate = new Date(b.date).setHours(0, 0, 0, 0)
+        const fromDate = new Date(dateFrom).setHours(0, 0, 0, 0)
+        if (bookingDate < fromDate) return false
+      }
+      if (dateTo) {
+        const bookingDate = new Date(b.date).setHours(0, 0, 0, 0)
+        const toDate = new Date(dateTo).setHours(23, 59, 59, 999)
+        if (bookingDate > toDate) return false
+      }
+
+      return true
+    })
     .sort((a, b) => {
       if (sortBy === 'date') {
         return new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -731,35 +917,90 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <label className="text-soft-muted text-sm">Status:</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
-            >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+        {/* Search and Filters */}
+        <div className="glass-card p-4 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-soft-muted">
+                  <IconSearch />
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, email, phone, or business..."
+                  className="w-full pl-10 pr-10 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-soft-muted hover:text-soft"
+                  >
+                    <IconX />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Date Range */}
+            <div className="flex items-center gap-2">
+              <label className="text-soft-muted text-sm whitespace-nowrap">Date:</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+              />
+              <span className="text-soft-muted">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+              />
+              {(dateFrom || dateTo) && (
+                <button
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  className="p-2 text-soft-muted hover:text-soft"
+                  title="Clear dates"
+                >
+                  <IconX />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-soft-muted text-sm">Sort by:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'date' | 'created')}
-              className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
-            >
-              <option value="created">Booking Date</option>
-              <option value="date">Call Date</option>
-            </select>
-          </div>
-          <div className="sm:ml-auto text-soft-muted text-sm">
-            Showing {filteredBookings.length} of {bookings.length} bookings
+
+          <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <label className="text-soft-muted text-sm">Status:</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-soft-muted text-sm">Sort by:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'date' | 'created')}
+                className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+              >
+                <option value="created">Booking Date</option>
+                <option value="date">Call Date</option>
+              </select>
+            </div>
+            <div className="sm:ml-auto text-soft-muted text-sm">
+              Showing {filteredBookings.length} of {bookings.length} bookings
+            </div>
           </div>
         </div>
 
@@ -801,20 +1042,54 @@ export default function AdminPage() {
                             <div className="text-soft-muted text-xs">{booking.time} EST</div>
                           </td>
                           <td className="p-4">
-                            <select
-                              value={booking.status}
-                              onChange={(e) => {
-                                e.stopPropagation()
-                                updateStatus(booking.id, e.target.value)
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border bg-transparent cursor-pointer ${statusColors[booking.status]}`}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="confirmed">Confirmed</option>
-                              <option value="completed">Completed</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
+                            <div className="flex items-center gap-1">
+                              {/* Quick action buttons */}
+                              {booking.status === 'pending' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    updateStatus(booking.id, 'confirmed')
+                                  }}
+                                  className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                  title="Confirm"
+                                >
+                                  <IconCheckCircle />
+                                </button>
+                              )}
+                              {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    updateStatus(booking.id, 'completed')
+                                  }}
+                                  className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                                  title="Mark Complete"
+                                >
+                                  <IconCheck />
+                                </button>
+                              )}
+                              {booking.status !== 'cancelled' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    updateStatus(booking.id, 'cancelled')
+                                  }}
+                                  className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                                  title="Cancel"
+                                >
+                                  <IconXCircle />
+                                </button>
+                              )}
+                              {/* Status badge */}
+                              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[booking.status]}`}>
+                                {booking.status}
+                              </span>
+                              {booking.notes && (
+                                <span className="ml-1 text-soft-muted" title="Has notes">
+                                  <IconNote />
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -910,6 +1185,64 @@ export default function AdminPage() {
                       <p className="text-soft-muted text-sm mt-1">{formatCreatedAt(selectedBooking.createdAt)}</p>
                     </div>
 
+                    {/* Quick Status Actions */}
+                    <div className="pt-4 border-t border-white/5">
+                      <label className="text-soft-muted text-xs uppercase tracking-wider mb-2 block">Quick Actions</label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedBooking.status === 'pending' && (
+                          <button
+                            onClick={() => updateStatus(selectedBooking.id, 'confirmed')}
+                            className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm flex items-center gap-1.5"
+                          >
+                            <IconCheckCircle /> Confirm
+                          </button>
+                        )}
+                        {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
+                          <button
+                            onClick={() => updateStatus(selectedBooking.id, 'completed')}
+                            className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm flex items-center gap-1.5"
+                          >
+                            <IconCheck /> Complete
+                          </button>
+                        )}
+                        {selectedBooking.status !== 'cancelled' && (
+                          <button
+                            onClick={() => updateStatus(selectedBooking.id, 'cancelled')}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm flex items-center gap-1.5"
+                          >
+                            <IconXCircle /> Cancel
+                          </button>
+                        )}
+                        {selectedBooking.status === 'cancelled' && (
+                          <button
+                            onClick={() => updateStatus(selectedBooking.id, 'pending')}
+                            className="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors text-sm flex items-center gap-1.5"
+                          >
+                            <IconClock /> Restore
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div className="pt-4 border-t border-white/5">
+                      <label className="text-soft-muted text-xs uppercase tracking-wider mb-2 block">Private Notes</label>
+                      <textarea
+                        value={selectedBooking.notes || ''}
+                        onChange={(e) => {
+                          const newNotes = e.target.value
+                          setSelectedBooking({ ...selectedBooking, notes: newNotes })
+                        }}
+                        onBlur={(e) => {
+                          saveNotes(selectedBooking.id, e.target.value)
+                        }}
+                        placeholder="Add notes about this client..."
+                        className="w-full px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft placeholder-soft-muted/50 focus:outline-none focus:border-accent/50 transition-colors text-sm resize-none"
+                        rows={3}
+                      />
+                      <p className="text-soft-muted text-xs mt-1">Notes auto-save when you click away</p>
+                    </div>
+
                     <div className="pt-4 border-t border-white/5 space-y-2">
                       <div className="flex gap-2">
                         <a
@@ -945,6 +1278,34 @@ export default function AdminPage() {
                           )}
                         </button>
                       </div>
+                      {selectedBooking.status !== 'cancelled' && (
+                        <button
+                          onClick={() => sendReminderEmail(selectedBooking)}
+                          disabled={emailLoading === selectedBooking.id || emailSuccess === selectedBooking.id}
+                          className={`w-full px-4 py-2 rounded-full text-sm flex items-center justify-center gap-2 transition-colors ${
+                            emailSuccess === selectedBooking.id
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : 'border border-accent/30 text-accent hover:bg-accent/10'
+                          } disabled:cursor-not-allowed`}
+                        >
+                          {emailLoading === selectedBooking.id ? (
+                            <>
+                              <IconSpinner />
+                              Sending...
+                            </>
+                          ) : emailSuccess === selectedBooking.id ? (
+                            <>
+                              <IconCheck />
+                              Reminder Sent
+                            </>
+                          ) : (
+                            <>
+                              <IconMail />
+                              Send Reminder Email
+                            </>
+                          )}
+                        </button>
+                      )}
                       <button
                         onClick={() => deleteBooking(selectedBooking.id)}
                         className="w-full px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-sm"
@@ -1170,6 +1531,82 @@ export default function AdminPage() {
                 <p className="text-soft-muted text-xs mt-2">
                   Last booking slot will be 30 minutes before end time.
                 </p>
+              </div>
+
+              {/* Scheduling Controls */}
+              <div className="pt-6 border-t border-white/5">
+                <h3 className="text-soft font-medium mb-3">Booking Rules</h3>
+                <p className="text-soft-muted text-sm mb-4">
+                  Control when and how clients can book.
+                </p>
+                <div className="space-y-4">
+                  {/* Minimum Notice */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-soft text-sm font-medium">Minimum Notice</label>
+                      <p className="text-soft-muted text-xs">How far in advance must bookings be made</p>
+                    </div>
+                    <select
+                      value={minNoticeHours}
+                      onChange={(e) => updateSchedulingSetting('minNoticeHours', parseInt(e.target.value))}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      <option value={0}>No minimum</option>
+                      <option value={1}>1 hour</option>
+                      <option value={2}>2 hours</option>
+                      <option value={4}>4 hours</option>
+                      <option value={12}>12 hours</option>
+                      <option value={24}>24 hours</option>
+                      <option value={48}>48 hours</option>
+                      <option value={72}>3 days</option>
+                      <option value={168}>1 week</option>
+                    </select>
+                  </div>
+
+                  {/* Buffer Time */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-soft text-sm font-medium">Buffer After Calls</label>
+                      <p className="text-soft-muted text-xs">Time blocked after each consultation</p>
+                    </div>
+                    <select
+                      value={bufferMinutes}
+                      onChange={(e) => updateSchedulingSetting('bufferMinutes', parseInt(e.target.value))}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      <option value={0}>No buffer</option>
+                      <option value={5}>5 minutes</option>
+                      <option value={10}>10 minutes</option>
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={45}>45 minutes</option>
+                      <option value={60}>1 hour</option>
+                    </select>
+                  </div>
+
+                  {/* Max Bookings Per Day */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-soft text-sm font-medium">Max Bookings Per Day</label>
+                      <p className="text-soft-muted text-xs">Limit daily consultations to avoid burnout</p>
+                    </div>
+                    <select
+                      value={maxBookingsPerDay}
+                      onChange={(e) => updateSchedulingSetting('maxBookingsPerDay', parseInt(e.target.value))}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      <option value={0}>Unlimited</option>
+                      <option value={1}>1 per day</option>
+                      <option value={2}>2 per day</option>
+                      <option value={3}>3 per day</option>
+                      <option value={4}>4 per day</option>
+                      <option value={5}>5 per day</option>
+                      <option value={6}>6 per day</option>
+                      <option value={8}>8 per day</option>
+                      <option value={10}>10 per day</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* Current Schedule Summary */}

@@ -151,6 +151,9 @@ export default function BookPage() {
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5]) // Default Mon-Fri
   const [startHour, setStartHour] = useState<number>(9)
   const [endHour, setEndHour] = useState<number>(16)
+  const [minNoticeHours, setMinNoticeHours] = useState<number>(24)
+  const [bufferMinutes, setBufferMinutes] = useState<number>(15)
+  const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0)
 
   const calendarGrid = useMemo(() => getCalendarGrid(currentMonth), [currentMonth])
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour])
@@ -173,6 +176,15 @@ export default function BookPage() {
           if (data.settings?.endHour !== undefined) {
             setEndHour(data.settings.endHour)
           }
+          if (data.settings?.minNoticeHours !== undefined) {
+            setMinNoticeHours(data.settings.minNoticeHours)
+          }
+          if (data.settings?.bufferMinutes !== undefined) {
+            setBufferMinutes(data.settings.bufferMinutes)
+          }
+          if (data.settings?.maxBookingsPerDay !== undefined) {
+            setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
+          }
         }
       } catch (error) {
         console.error('Failed to fetch slots:', error)
@@ -180,6 +192,52 @@ export default function BookPage() {
     }
     fetchSlots()
   }, [bookingComplete]) // Refetch after a booking is made
+
+  // Check if a slot is within minimum notice period
+  const isWithinNotice = (date: Date, time: string) => {
+    if (minNoticeHours === 0) return true
+    const slot = timeSlots.find(s => s.time === time)
+    if (!slot) return true
+    const slotDateTime = new Date(date)
+    slotDateTime.setHours(slot.hour24, slot.minute, 0, 0)
+    const minNoticeTime = new Date()
+    minNoticeTime.setHours(minNoticeTime.getHours() + minNoticeHours)
+    return slotDateTime >= minNoticeTime
+  }
+
+  // Check if a slot is blocked by buffer from another booking
+  const isBufferedSlot = (date: Date, time: string) => {
+    if (bufferMinutes === 0) return false
+    const dateStr = date.toISOString().split('T')[0]
+    const currentSlot = timeSlots.find(s => s.time === time)
+    if (!currentSlot) return false
+
+    // Check each booked slot to see if current slot falls within buffer
+    for (const booked of bookedSlots) {
+      if (booked.date !== dateStr) continue
+      const bookedSlot = timeSlots.find(s => s.time === booked.time)
+      if (!bookedSlot) continue
+
+      // Calculate buffer window after the booked slot (30 min consultation + buffer)
+      const bookedMinutes = bookedSlot.hour24 * 60 + bookedSlot.minute
+      const bufferEndMinutes = bookedMinutes + 30 + bufferMinutes
+      const currentMinutes = currentSlot.hour24 * 60 + currentSlot.minute
+
+      // If current slot starts during the buffer period
+      if (currentMinutes > bookedMinutes && currentMinutes < bufferEndMinutes) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Check if date has reached max bookings
+  const isMaxedOut = (date: Date) => {
+    if (maxBookingsPerDay === 0) return false
+    const dateStr = date.toISOString().split('T')[0]
+    const dayBookings = bookedSlots.filter(b => b.date === dateStr).length
+    return dayBookings >= maxBookingsPerDay
+  }
 
   // Check if day is available (configured via admin)
   const isAvailableDay = (date: Date) => {
@@ -189,6 +247,7 @@ export default function BookPage() {
   // Check if a specific date has any available slots
   const hasAvailableSlots = (date: Date) => {
     if (!isAvailableDay(date) || isPast(date)) return false
+    if (isMaxedOut(date)) return false
     const dateStr = date.toISOString().split('T')[0]
     // Check if entire day is blocked
     const dayBlocked = blockedSlots.some(slot => slot.date === dateStr && !slot.time)
@@ -197,7 +256,9 @@ export default function BookPage() {
     return timeSlots.some(slot => {
       const booked = bookedSlots.some(b => b.date === dateStr && b.time === slot.time)
       const blocked = blockedSlots.some(b => b.date === dateStr && b.time === slot.time)
-      return !booked && !blocked
+      const withinNotice = isWithinNotice(date, slot.time)
+      const buffered = isBufferedSlot(date, slot.time)
+      return !booked && !blocked && withinNotice && !buffered
     })
   }
 
@@ -221,9 +282,11 @@ export default function BookPage() {
     return timeSlots.filter(slot => {
       const booked = isSlotBooked(selectedDate, slot.time)
       const blocked = isSlotBlocked(selectedDate, slot.time)
-      return !booked && !blocked
+      const withinNotice = isWithinNotice(selectedDate, slot.time)
+      const buffered = isBufferedSlot(selectedDate, slot.time)
+      return !booked && !blocked && withinNotice && !buffered
     })
-  }, [selectedDate, bookedSlots, blockedSlots])
+  }, [selectedDate, bookedSlots, blockedSlots, timeSlots, minNoticeHours, bufferMinutes])
 
   const handleDateSelect = (date: Date) => {
     if (isPast(date) || !isAvailableDay(date) || !hasAvailableSlots(date)) return

@@ -28,12 +28,18 @@ interface Settings {
   availableDays: number[] // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
   startHour: number // Start hour in 24h format (e.g., 9 for 9am)
   endHour: number // End hour in 24h format (e.g., 16 for 4pm, last slot at 3:30pm)
+  minNoticeHours: number // Minimum hours in advance required to book
+  bufferMinutes: number // Minutes to block after each booking
+  maxBookingsPerDay: number // Maximum bookings allowed per day (0 = unlimited)
 }
 
 const DEFAULT_SETTINGS: Settings = {
   availableDays: [1, 2, 3, 4, 5], // Mon-Fri by default
   startHour: 9, // 9:00 AM
-  endHour: 16 // Last slot at 3:30 PM
+  endHour: 16, // Last slot at 3:30 PM
+  minNoticeHours: 24, // Require 24 hours notice
+  bufferMinutes: 15, // 15 min buffer after each call
+  maxBookingsPerDay: 0 // Unlimited by default
 }
 
 let memorySettings: Settings = { ...DEFAULT_SETTINGS }
@@ -56,6 +62,13 @@ interface Booking {
   meetLink?: string
   createdAt: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  notes?: string
+  cancelToken?: string
+}
+
+// Generate a random token for cancellation links
+function generateToken(): string {
+  return Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
 }
 
 async function getBookings(): Promise<Booking[]> {
@@ -203,7 +216,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create new booking
+    // Create new booking with cancel token
     const booking: Booking = {
       id: `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name,
@@ -214,6 +227,7 @@ export async function POST(request: NextRequest) {
       time,
       createdAt: new Date().toISOString(),
       status: 'pending',
+      cancelToken: generateToken(),
     }
 
     // Save to storage
@@ -221,13 +235,18 @@ export async function POST(request: NextRequest) {
     bookings.unshift(booking) // Add to beginning (newest first)
     await saveBookings(bookings)
 
-    // Send notification
+    // Send notification (logs to console)
     await sendNotification(booking)
+
+    // Send confirmation email (async, don't wait)
+    sendConfirmationEmail(booking).catch(err => {
+      console.error('Failed to send confirmation email:', err)
+    })
 
     return NextResponse.json({
       success: true,
       message: 'Booking created successfully',
-      booking,
+      booking: { ...booking, cancelToken: undefined }, // Don't expose cancel token
       storageType: redis ? 'redis' : 'memory',
     })
   } catch (error) {
@@ -236,6 +255,32 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create booking. Please try again or email us directly at oasisadvisoryteam@gmail.com' },
       { status: 500 }
     )
+  }
+}
+
+// Send confirmation email helper
+async function sendConfirmationEmail(booking: Booking) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://oasisadvisory.com'
+  try {
+    await fetch(`${baseUrl}/api/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-call': 'true',
+      },
+      body: JSON.stringify({
+        type: 'confirmation',
+        booking: {
+          name: booking.name,
+          email: booking.email,
+          date: booking.date,
+          time: booking.time,
+          cancelToken: booking.cancelToken,
+        },
+      }),
+    })
+  } catch (error) {
+    console.error('Email send error:', error)
   }
 }
 
@@ -250,7 +295,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, status, action, date, time, availableDays, startHour, endHour } = body
+    const { id, status, action, date, time, availableDays, startHour, endHour, minNoticeHours, bufferMinutes, maxBookingsPerDay, notes } = body
 
     // Handle settings update
     if (action === 'updateSettings') {
@@ -264,8 +309,29 @@ export async function PATCH(request: NextRequest) {
       if (endHour !== undefined) {
         settings.endHour = endHour
       }
+      if (minNoticeHours !== undefined) {
+        settings.minNoticeHours = minNoticeHours
+      }
+      if (bufferMinutes !== undefined) {
+        settings.bufferMinutes = bufferMinutes
+      }
+      if (maxBookingsPerDay !== undefined) {
+        settings.maxBookingsPerDay = maxBookingsPerDay
+      }
       await saveSettings(settings)
       return NextResponse.json({ success: true, settings })
+    }
+
+    // Handle notes update
+    if (action === 'updateNotes') {
+      const bookings = await getBookings()
+      const index = bookings.findIndex(b => b.id === id)
+      if (index === -1) {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+      }
+      bookings[index].notes = notes
+      await saveBookings(bookings)
+      return NextResponse.json({ success: true, booking: bookings[index] })
     }
 
     // Handle block/unblock actions
