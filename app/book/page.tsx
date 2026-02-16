@@ -53,12 +53,12 @@ const IconClose = () => (
   </svg>
 )
 
-// Generate 30-minute time slots from 9am to 4pm
-function generateTimeSlots() {
+// Generate 30-minute time slots for given hour range
+function generateTimeSlots(startHour: number, endHour: number) {
   const slots = []
-  for (let hour = 9; hour < 16; hour++) {
+  for (let hour = startHour; hour < endHour; hour++) {
     for (let min = 0; min < 60; min += 30) {
-      const hour12 = hour > 12 ? hour - 12 : hour
+      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
       const ampm = hour >= 12 ? 'PM' : 'AM'
       const timeStr = `${hour12}:${min.toString().padStart(2, '0')} ${ampm}`
       slots.push({
@@ -70,8 +70,6 @@ function generateTimeSlots() {
   }
   return slots
 }
-
-const timeSlots = generateTimeSlots()
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -151,8 +149,11 @@ export default function BookPage() {
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5]) // Default Mon-Fri
+  const [startHour, setStartHour] = useState<number>(9)
+  const [endHour, setEndHour] = useState<number>(16)
 
   const calendarGrid = useMemo(() => getCalendarGrid(currentMonth), [currentMonth])
+  const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour])
 
   // Fetch booked and blocked slots on mount and after booking
   useEffect(() => {
@@ -165,6 +166,12 @@ export default function BookPage() {
           setBlockedSlots(data.blockedSlots || [])
           if (data.settings?.availableDays) {
             setAvailableDays(data.settings.availableDays)
+          }
+          if (data.settings?.startHour !== undefined) {
+            setStartHour(data.settings.startHour)
+          }
+          if (data.settings?.endHour !== undefined) {
+            setEndHour(data.settings.endHour)
           }
         }
       } catch (error) {

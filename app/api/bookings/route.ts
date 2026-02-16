@@ -26,10 +26,14 @@ const SETTINGS_KEY = 'oasis:settings'
 
 interface Settings {
   availableDays: number[] // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  startHour: number // Start hour in 24h format (e.g., 9 for 9am)
+  endHour: number // End hour in 24h format (e.g., 16 for 4pm, last slot at 3:30pm)
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  availableDays: [1, 2, 3, 4, 5] // Mon-Fri by default
+  availableDays: [1, 2, 3, 4, 5], // Mon-Fri by default
+  startHour: 9, // 9:00 AM
+  endHour: 16 // Last slot at 3:30 PM
 }
 
 let memorySettings: Settings = { ...DEFAULT_SETTINGS }
@@ -246,13 +250,19 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, status, action, date, time, availableDays } = body
+    const { id, status, action, date, time, availableDays, startHour, endHour } = body
 
     // Handle settings update
     if (action === 'updateSettings') {
       const settings = await getSettings()
       if (availableDays !== undefined) {
         settings.availableDays = availableDays
+      }
+      if (startHour !== undefined) {
+        settings.startHour = startHour
+      }
+      if (endHour !== undefined) {
+        settings.endHour = endHour
       }
       await saveSettings(settings)
       return NextResponse.json({ success: true, settings })

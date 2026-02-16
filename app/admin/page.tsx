@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
@@ -24,12 +24,12 @@ interface BlockedSlot {
   createdAt: string
 }
 
-// Generate 30-minute time slots from 9am to 4pm
-function generateTimeSlots() {
+// Generate 30-minute time slots for given hour range
+function generateTimeSlots(startHour: number, endHour: number) {
   const slots = []
-  for (let hour = 9; hour < 16; hour++) {
+  for (let hour = startHour; hour < endHour; hour++) {
     for (let min = 0; min < 60; min += 30) {
-      const hour12 = hour > 12 ? hour - 12 : hour
+      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
       const ampm = hour >= 12 ? 'PM' : 'AM'
       const timeStr = `${hour12}:${min.toString().padStart(2, '0')} ${ampm}`
       slots.push(timeStr)
@@ -37,8 +37,6 @@ function generateTimeSlots() {
   }
   return slots
 }
-
-const timeSlots = generateTimeSlots()
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -171,6 +169,8 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'bookings' | 'block' | 'settings'>('bookings')
   const [blockWeekOffset, setBlockWeekOffset] = useState(0)
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5])
+  const [startHour, setStartHour] = useState<number>(9)
+  const [endHour, setEndHour] = useState<number>(16)
 
   // Drag selection state
   const [isDragging, setIsDragging] = useState(false)
@@ -180,6 +180,9 @@ export default function AdminPage() {
   // Google Calendar state
   const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
   const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null)
+
+  // Dynamic time slots based on settings
+  const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,6 +201,12 @@ export default function AdminPage() {
         setBlockedSlots(data.blockedSlots || [])
         if (data.settings?.availableDays) {
           setAvailableDays(data.settings.availableDays)
+        }
+        if (data.settings?.startHour !== undefined) {
+          setStartHour(data.settings.startHour)
+        }
+        if (data.settings?.endHour !== undefined) {
+          setEndHour(data.settings.endHour)
         }
       } else {
         setLoginError('Invalid password')
@@ -220,6 +229,12 @@ export default function AdminPage() {
         setBlockedSlots(data.blockedSlots || [])
         if (data.settings?.availableDays) {
           setAvailableDays(data.settings.availableDays)
+        }
+        if (data.settings?.startHour !== undefined) {
+          setStartHour(data.settings.startHour)
+        }
+        if (data.settings?.endHour !== undefined) {
+          setEndHour(data.settings.endHour)
         }
       }
     } catch (error) {
@@ -253,6 +268,39 @@ export default function AdminPage() {
       console.error('Failed to update settings:', error)
     }
   }
+
+  const updateTimeSettings = async (newStartHour: number, newEndHour: number) => {
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          action: 'updateSettings',
+          startHour: newStartHour,
+          endHour: newEndHour
+        })
+      })
+      if (response.ok) {
+        setStartHour(newStartHour)
+        setEndHour(newEndHour)
+      }
+    } catch (error) {
+      console.error('Failed to update time settings:', error)
+    }
+  }
+
+  // Helper to format hour to 12h time string
+  const formatHour = (hour: number) => {
+    const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    return `${h}:00 ${ampm}`
+  }
+
+  // Generate hour options for dropdown
+  const hourOptions = Array.from({ length: 15 }, (_, i) => i + 6) // 6 AM to 8 PM
 
   const isAvailableDay = (date: Date) => {
     return availableDays.includes(date.getDay())
@@ -1073,6 +1121,57 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Available Hours */}
+              <div className="pt-6 border-t border-white/5">
+                <h3 className="text-soft font-medium mb-3">Available Hours</h3>
+                <p className="text-soft-muted text-sm mb-4">
+                  Set the time range when clients can book consultations.
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-soft-muted text-sm">Start:</label>
+                    <select
+                      value={startHour}
+                      onChange={(e) => {
+                        const newStart = parseInt(e.target.value)
+                        if (newStart < endHour) {
+                          updateTimeSettings(newStart, endHour)
+                        }
+                      }}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      {hourOptions.map(h => (
+                        <option key={h} value={h} disabled={h >= endHour}>
+                          {formatHour(h)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-soft-muted text-sm">End:</label>
+                    <select
+                      value={endHour}
+                      onChange={(e) => {
+                        const newEnd = parseInt(e.target.value)
+                        if (newEnd > startHour) {
+                          updateTimeSettings(startHour, newEnd)
+                        }
+                      }}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      {hourOptions.map(h => (
+                        <option key={h} value={h} disabled={h <= startHour}>
+                          {formatHour(h)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-soft-muted text-xs mt-2">
+                  Last booking slot will be 30 minutes before end time.
+                </p>
+              </div>
+
               {/* Current Schedule Summary */}
               <div className="pt-6 border-t border-white/5">
                 <h3 className="text-soft font-medium mb-3">Current Schedule</h3>
@@ -1085,7 +1184,7 @@ export default function AdminPage() {
                   </p>
                   <p className="text-soft-muted text-sm mt-2">
                     <span className="text-soft font-medium">Hours: </span>
-                    9:00 AM - 3:30 PM EST (30-min slots)
+                    {formatHour(startHour)} - {formatHour(endHour - 1).replace(':00', ':30')} EST (30-min slots)
                   </p>
                 </div>
               </div>
