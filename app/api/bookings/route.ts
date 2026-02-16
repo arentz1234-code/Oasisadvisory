@@ -31,6 +31,7 @@ interface Settings {
   minNoticeHours: number // Minimum hours in advance required to book
   bufferMinutes: number // Minutes to block after each booking
   maxBookingsPerDay: number // Maximum bookings allowed per day (0 = unlimited)
+  maxWeeksInAdvance: number // How many weeks in advance clients can book
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -39,7 +40,8 @@ const DEFAULT_SETTINGS: Settings = {
   endHour: 16, // Last slot at 3:30 PM
   minNoticeHours: 24, // Require 24 hours notice
   bufferMinutes: 15, // 15 min buffer after each call
-  maxBookingsPerDay: 0 // Unlimited by default
+  maxBookingsPerDay: 0, // Unlimited by default
+  maxWeeksInAdvance: 2 // 2 weeks in advance by default
 }
 
 let memorySettings: Settings = { ...DEFAULT_SETTINGS }
@@ -295,7 +297,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, status, action, date, time, availableDays, startHour, endHour, minNoticeHours, bufferMinutes, maxBookingsPerDay, notes } = body
+    const { id, status, action, date, time, availableDays, startHour, endHour, minNoticeHours, bufferMinutes, maxBookingsPerDay, maxWeeksInAdvance, notes } = body
 
     // Handle settings update
     if (action === 'updateSettings') {
@@ -317,6 +319,9 @@ export async function PATCH(request: NextRequest) {
       }
       if (maxBookingsPerDay !== undefined) {
         settings.maxBookingsPerDay = maxBookingsPerDay
+      }
+      if (maxWeeksInAdvance !== undefined) {
+        settings.maxWeeksInAdvance = maxWeeksInAdvance
       }
       await saveSettings(settings)
       return NextResponse.json({ success: true, settings })

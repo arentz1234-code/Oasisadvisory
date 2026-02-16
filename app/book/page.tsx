@@ -154,6 +154,7 @@ export default function BookPage() {
   const [minNoticeHours, setMinNoticeHours] = useState<number>(24)
   const [bufferMinutes, setBufferMinutes] = useState<number>(15)
   const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0)
+  const [maxWeeksInAdvance, setMaxWeeksInAdvance] = useState<number>(2)
 
   const calendarGrid = useMemo(() => getCalendarGrid(currentMonth), [currentMonth])
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour])
@@ -184,6 +185,9 @@ export default function BookPage() {
           }
           if (data.settings?.maxBookingsPerDay !== undefined) {
             setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
+          }
+          if (data.settings?.maxWeeksInAdvance !== undefined) {
+            setMaxWeeksInAdvance(data.settings.maxWeeksInAdvance)
           }
         }
       } catch (error) {
@@ -239,6 +243,17 @@ export default function BookPage() {
     return dayBookings >= maxBookingsPerDay
   }
 
+  // Check if date is beyond the booking window
+  const isBeyondWindow = (date: Date) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const maxDate = new Date(today)
+    maxDate.setDate(maxDate.getDate() + (maxWeeksInAdvance * 7))
+    const checkDate = new Date(date)
+    checkDate.setHours(0, 0, 0, 0)
+    return checkDate > maxDate
+  }
+
   // Check if day is available (configured via admin)
   const isAvailableDay = (date: Date) => {
     return availableDays.includes(date.getDay())
@@ -246,7 +261,7 @@ export default function BookPage() {
 
   // Check if a specific date has any available slots
   const hasAvailableSlots = (date: Date) => {
-    if (!isAvailableDay(date) || isPast(date)) return false
+    if (!isAvailableDay(date) || isPast(date) || isBeyondWindow(date)) return false
     if (isMaxedOut(date)) return false
     const dateStr = date.toISOString().split('T')[0]
     // Check if entire day is blocked
@@ -289,7 +304,7 @@ export default function BookPage() {
   }, [selectedDate, bookedSlots, blockedSlots, timeSlots, minNoticeHours, bufferMinutes])
 
   const handleDateSelect = (date: Date) => {
-    if (isPast(date) || !isAvailableDay(date) || !hasAvailableSlots(date)) return
+    if (isPast(date) || isBeyondWindow(date) || !isAvailableDay(date) || !hasAvailableSlots(date)) return
     setSelectedDate(date)
     setSelectedTime(null)
     setShowForm(false)

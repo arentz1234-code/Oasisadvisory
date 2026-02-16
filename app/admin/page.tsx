@@ -224,6 +224,7 @@ export default function AdminPage() {
   const [minNoticeHours, setMinNoticeHours] = useState<number>(24)
   const [bufferMinutes, setBufferMinutes] = useState<number>(15)
   const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0)
+  const [maxWeeksInAdvance, setMaxWeeksInAdvance] = useState<number>(2)
 
   // Drag selection state
   const [isDragging, setIsDragging] = useState(false)
@@ -274,6 +275,9 @@ export default function AdminPage() {
         if (data.settings?.maxBookingsPerDay !== undefined) {
           setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
         }
+        if (data.settings?.maxWeeksInAdvance !== undefined) {
+          setMaxWeeksInAdvance(data.settings.maxWeeksInAdvance)
+        }
       } else {
         setLoginError('Invalid password')
       }
@@ -310,6 +314,9 @@ export default function AdminPage() {
         }
         if (data.settings?.maxBookingsPerDay !== undefined) {
           setMaxBookingsPerDay(data.settings.maxBookingsPerDay)
+        }
+        if (data.settings?.maxWeeksInAdvance !== undefined) {
+          setMaxWeeksInAdvance(data.settings.maxWeeksInAdvance)
         }
       }
     } catch (error) {
@@ -394,6 +401,7 @@ export default function AdminPage() {
         if (key === 'minNoticeHours') setMinNoticeHours(value)
         if (key === 'bufferMinutes') setBufferMinutes(value)
         if (key === 'maxBookingsPerDay') setMaxBookingsPerDay(value)
+        if (key === 'maxWeeksInAdvance') setMaxWeeksInAdvance(value)
       }
     } catch (error) {
       console.error('Failed to update scheduling setting:', error)
@@ -1606,6 +1614,27 @@ export default function AdminPage() {
                       <option value={10}>10 per day</option>
                     </select>
                   </div>
+
+                  {/* Max Weeks In Advance */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-soft text-sm font-medium">Booking Window</label>
+                      <p className="text-soft-muted text-xs">How far in advance clients can book</p>
+                    </div>
+                    <select
+                      value={maxWeeksInAdvance}
+                      onChange={(e) => updateSchedulingSetting('maxWeeksInAdvance', parseInt(e.target.value))}
+                      className="px-3 py-2 rounded-lg bg-navy-50 border border-white/10 text-soft text-sm focus:outline-none focus:border-accent/50"
+                    >
+                      <option value={1}>1 week</option>
+                      <option value={2}>2 weeks</option>
+                      <option value={3}>3 weeks</option>
+                      <option value={4}>4 weeks</option>
+                      <option value={6}>6 weeks</option>
+                      <option value={8}>8 weeks</option>
+                      <option value={12}>12 weeks</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1622,6 +1651,10 @@ export default function AdminPage() {
                   <p className="text-soft-muted text-sm mt-2">
                     <span className="text-soft font-medium">Hours: </span>
                     {formatHour(startHour)} - {formatHour(endHour - 1).replace(':00', ':30')} EST (30-min slots)
+                  </p>
+                  <p className="text-soft-muted text-sm mt-2">
+                    <span className="text-soft font-medium">Booking Window: </span>
+                    {maxWeeksInAdvance} week{maxWeeksInAdvance > 1 ? 's' : ''} in advance
                   </p>
                 </div>
               </div>
