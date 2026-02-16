@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
@@ -148,6 +148,11 @@ export default function AdminPage() {
   const [blockWeekOffset, setBlockWeekOffset] = useState(0)
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5])
 
+  // Drag selection state
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragAction, setDragAction] = useState<'block' | 'unblock' | null>(null)
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError('')
@@ -260,6 +265,69 @@ export default function AdminPage() {
       b.status !== 'cancelled'
     )
   }
+
+  // Drag selection handlers
+  const handleDragStart = (date: string, time: string, isBlocked: boolean) => {
+    setIsDragging(true)
+    setDragAction(isBlocked ? 'unblock' : 'block')
+    setSelectedSlots(new Set([`${date}|${time}`]))
+  }
+
+  const handleDragEnter = (date: string, time: string) => {
+    if (isDragging) {
+      setSelectedSlots(prev => new Set([...prev, `${date}|${time}`]))
+    }
+  }
+
+  const handleDragEnd = useCallback(async () => {
+    if (!isDragging || selectedSlots.size === 0) {
+      setIsDragging(false)
+      setSelectedSlots(new Set())
+      setDragAction(null)
+      return
+    }
+
+    // Apply action to all selected slots
+    for (const slot of selectedSlots) {
+      const [date, time] = slot.split('|')
+      const isBooked = isSlotBooked(date, time)
+      if (!isBooked) {
+        try {
+          await fetch('/api/bookings', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+              action: dragAction,
+              date,
+              time
+            })
+          })
+        } catch (error) {
+          console.error('Failed to update slot:', error)
+        }
+      }
+    }
+
+    // Refresh and reset
+    fetchBookings()
+    setIsDragging(false)
+    setSelectedSlots(new Set())
+    setDragAction(null)
+  }, [isDragging, selectedSlots, dragAction, authToken])
+
+  // Handle mouse up anywhere on the page
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isDragging) {
+        handleDragEnd()
+      }
+    }
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => window.removeEventListener('mouseup', handleMouseUp)
+  }, [isDragging, handleDragEnd])
 
   const updateStatus = async (id: string, status: string) => {
     try {
@@ -773,7 +841,7 @@ export default function AdminPage() {
             </div>
 
             <p className="text-soft-muted text-sm mb-4">
-              Click on a time slot to block/unblock it. Available days: {availableDays.map(d => DAY_NAMES[d]).join(', ') || 'None'}.
+              Click or drag across time slots to block/unblock multiple at once. Available days: {availableDays.map(d => DAY_NAMES[d]).join(', ') || 'None'}.
             </p>
 
             <div className="overflow-x-auto">
@@ -816,17 +884,28 @@ export default function AdminPage() {
                           )
                         }
 
+                        const slotKey = `${dateStr}|${time}`
+                        const isSelected = selectedSlots.has(slotKey)
+
                         return (
                           <td key={dayIndex} className="p-1">
                             <button
-                              onClick={() => !booked && toggleBlockSlot(dateStr, time)}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                if (!booked) handleDragStart(dateStr, time, blocked)
+                              }}
+                              onMouseEnter={() => {
+                                if (!booked) handleDragEnter(dateStr, time)
+                              }}
                               disabled={booked}
-                              className={`w-full h-8 rounded text-xs font-medium transition-all ${
+                              className={`w-full h-8 rounded text-xs font-medium transition-all select-none ${
                                 booked
                                   ? 'bg-blue-500/20 text-blue-400 cursor-not-allowed'
-                                  : blocked
-                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                                  : isSelected
+                                    ? 'bg-accent/40 text-white ring-2 ring-accent'
+                                    : blocked
+                                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                               }`}
                             >
                               {booked ? 'Booked' : blocked ? 'Blocked' : 'Open'}
