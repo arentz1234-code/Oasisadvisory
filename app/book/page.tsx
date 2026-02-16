@@ -73,38 +73,44 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots()
 
-function getWeekStart(date: Date) {
-  const d = new Date(date)
-  const day = d.getDay()
-  d.setDate(d.getDate() - day)
-  d.setHours(0, 0, 0, 0)
-  return d
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function getMonthStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-function getCalendarDates(weekOffset: number = 0) {
-  const today = new Date()
-  const weekStart = getWeekStart(today)
-  weekStart.setDate(weekStart.getDate() + (weekOffset * 7))
+function getMonthEnd(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
 
-  const dates: Date[] = []
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(weekStart)
-    date.setDate(weekStart.getDate() + i)
-    dates.push(date)
+function getCalendarGrid(date: Date) {
+  const monthStart = getMonthStart(date)
+  const monthEnd = getMonthEnd(date)
+  const startDay = monthStart.getDay()
+  const daysInMonth = monthEnd.getDate()
+
+  const grid: (Date | null)[] = []
+
+  // Add empty cells for days before the month starts
+  for (let i = 0; i < startDay; i++) {
+    grid.push(null)
   }
-  return dates
+
+  // Add all days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    grid.push(new Date(date.getFullYear(), date.getMonth(), day))
+  }
+
+  // Fill remaining cells to complete the grid (up to 42 cells for 6 rows)
+  while (grid.length < 42) {
+    grid.push(null)
+  }
+
+  return grid
 }
 
 function formatMonthYear(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
-
-function formatDayName(date: Date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short' })
-}
-
-function formatDayNumber(date: Date) {
-  return date.getDate()
 }
 
 function isSameDay(date1: Date, date2: Date) {
@@ -123,13 +129,6 @@ function isPast(date: Date) {
   return compareDate < today
 }
 
-function isWeekend(date: Date) {
-  const day = date.getDay()
-  return day === 0 || day === 6
-}
-
-// Check if day is available (configured via admin)
-
 interface BookedSlot {
   date: string
   time: string
@@ -141,7 +140,7 @@ interface BlockedSlot {
 }
 
 export default function BookPage() {
-  const [weekOffset, setWeekOffset] = useState(0)
+  const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -153,8 +152,7 @@ export default function BookPage() {
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5]) // Default Mon-Fri
 
-  const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
-  const currentMonth = formatMonthYear(calendarDates[3])
+  const calendarGrid = useMemo(() => getCalendarGrid(currentMonth), [currentMonth])
 
   // Fetch booked and blocked slots on mount and after booking
   useEffect(() => {
@@ -181,6 +179,21 @@ export default function BookPage() {
     return availableDays.includes(date.getDay())
   }
 
+  // Check if a specific date has any available slots
+  const hasAvailableSlots = (date: Date) => {
+    if (!isAvailableDay(date) || isPast(date)) return false
+    const dateStr = date.toISOString().split('T')[0]
+    // Check if entire day is blocked
+    const dayBlocked = blockedSlots.some(slot => slot.date === dateStr && !slot.time)
+    if (dayBlocked) return false
+    // Check if at least one time slot is available
+    return timeSlots.some(slot => {
+      const booked = bookedSlots.some(b => b.date === dateStr && b.time === slot.time)
+      const blocked = blockedSlots.some(b => b.date === dateStr && b.time === slot.time)
+      return !booked && !blocked
+    })
+  }
+
   // Check if a specific date/time is booked
   const isSlotBooked = (date: Date, time: string) => {
     const dateStr = date.toISOString().split('T')[0]
@@ -195,8 +208,18 @@ export default function BookPage() {
     )
   }
 
+  // Get available time slots for selected date
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedDate) return []
+    return timeSlots.filter(slot => {
+      const booked = isSlotBooked(selectedDate, slot.time)
+      const blocked = isSlotBlocked(selectedDate, slot.time)
+      return !booked && !blocked
+    })
+  }, [selectedDate, bookedSlots, blockedSlots])
+
   const handleDateSelect = (date: Date) => {
-    if (isPast(date) || !isAvailableDay(date)) return
+    if (isPast(date) || !isAvailableDay(date) || !hasAvailableSlots(date)) return
     setSelectedDate(date)
     setSelectedTime(null)
     setShowForm(false)
@@ -205,6 +228,30 @@ export default function BookPage() {
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time)
     setShowForm(true)
+  }
+
+  const handlePrevMonth = () => {
+    const today = new Date()
+    const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    // Don't go before current month
+    if (newMonth.getFullYear() < today.getFullYear() ||
+        (newMonth.getFullYear() === today.getFullYear() && newMonth.getMonth() < today.getMonth())) {
+      return
+    }
+    setCurrentMonth(newMonth)
+    setSelectedDate(null)
+    setSelectedTime(null)
+  }
+
+  const handleNextMonth = () => {
+    const maxMonths = 2 // Allow booking up to 2 months ahead
+    const today = new Date()
+    const maxMonth = new Date(today.getFullYear(), today.getMonth() + maxMonths, 1)
+    const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+    if (newMonth > maxMonth) return
+    setCurrentMonth(newMonth)
+    setSelectedDate(null)
+    setSelectedTime(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,7 +293,13 @@ export default function BookPage() {
     setBookingComplete(false)
     setBookingError(null)
     setFormData({ name: '', email: '', phone: '', businessName: '' })
+    setCurrentMonth(new Date())
   }
+
+  // Check if we can go to previous month
+  const today = new Date()
+  const canGoPrev = currentMonth.getFullYear() > today.getFullYear() ||
+    (currentMonth.getFullYear() === today.getFullYear() && currentMonth.getMonth() > today.getMonth())
 
   return (
     <div className="pt-32 pb-20">
@@ -265,7 +318,7 @@ export default function BookPage() {
       {/* Calendar Section */}
       <section className="container-custom">
         <AnimatedSection>
-          <div className="glass-card p-4 md:p-6 max-w-5xl mx-auto">
+          <div className="glass-card p-4 md:p-8 max-w-4xl mx-auto">
             {bookingComplete ? (
               /* Success State */
               <div className="text-center py-12">
@@ -286,160 +339,158 @@ export default function BookPage() {
                 </button>
               </div>
             ) : (
-              <>
-                {/* Calendar Header */}
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-xl font-bold text-soft">{currentMonth}</h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
-                      disabled={weekOffset === 0}
-                      className="p-2 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Previous week"
-                    >
-                      <IconChevronLeft />
-                    </button>
-                    <button
-                      onClick={() => setWeekOffset(0)}
-                      className="px-3 py-1 text-sm text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => setWeekOffset(Math.min(1, weekOffset + 1))}
-                      disabled={weekOffset >= 1}
-                      className="p-2 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Next week"
-                    >
-                      <IconChevronRight />
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-soft-muted text-sm mb-4">
-                  Select an available time slot below to book your free consultation.
-                </p>
-
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-4 mb-4 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-accent/20 border-2 border-accent/40" />
-                    <span className="text-soft-muted">Available</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-accent shadow-lg shadow-accent/50" />
-                    <span className="text-soft-muted">Selected</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-white/5" />
-                    <span className="text-soft-muted">Unavailable</span>
-                  </div>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-8 gap-1 rounded-lg overflow-hidden">
-                  {/* Time column header */}
-                  <div className="bg-navy-50 p-3 text-center rounded-lg">
-                    <span className="text-xs font-medium text-soft-muted">TIME</span>
-                    <div className="text-[10px] text-soft-muted/60 mt-1">EST</div>
-                  </div>
-
-                  {/* Day headers */}
-                  {calendarDates.map((date, i) => {
-                    const available = isAvailableDay(date)
-                    const past = isPast(date)
-                    const unavailable = !available || past
-                    const today = isToday(date)
-                    const selected = selectedDate && isSameDay(date, selectedDate)
-
-                    return (
-                      <div
-                        key={i}
-                        className={`p-2 text-center rounded-lg transition-all ${
-                          unavailable
-                            ? 'bg-white/5 opacity-40'
-                            : selected
-                              ? 'bg-accent/10 ring-2 ring-accent/30'
-                              : 'bg-navy-50'
-                        }`}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Left: Month Calendar */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-soft">Select a Date</h3>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handlePrevMonth}
+                        disabled={!canGoPrev}
+                        className="p-2 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        aria-label="Previous month"
                       >
-                        <div className={`text-xs uppercase tracking-wider ${available && !past ? 'text-soft' : 'text-soft-muted'}`}>
-                          {formatDayName(date)}
-                        </div>
-                        <div
-                          className={`text-xl font-bold mt-1 w-10 h-10 mx-auto flex items-center justify-center rounded-full transition-all
-                            ${today && available && !past ? 'bg-accent text-white shadow-lg shadow-accent/30' : ''}
-                            ${selected && !today ? 'bg-accent/20 text-accent' : ''}
-                            ${!today && !selected ? 'text-soft' : ''}
+                        <IconChevronLeft />
+                      </button>
+                      <span className="text-soft font-medium min-w-[140px] text-center">
+                        {formatMonthYear(currentMonth)}
+                      </span>
+                      <button
+                        onClick={handleNextMonth}
+                        className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                        aria-label="Next month"
+                      >
+                        <IconChevronRight />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Day Names Header */}
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {DAY_NAMES.map(day => (
+                      <div key={day} className="text-center text-xs font-medium text-soft-muted py-2">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Calendar Grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarGrid.slice(0, 35).map((date, index) => {
+                      if (!date) {
+                        return <div key={index} className="aspect-square" />
+                      }
+
+                      const past = isPast(date)
+                      const available = isAvailableDay(date)
+                      const hasSlots = hasAvailableSlots(date)
+                      const isSelected = selectedDate && isSameDay(date, selectedDate)
+                      const today = isToday(date)
+                      const clickable = !past && available && hasSlots
+
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => clickable && handleDateSelect(date)}
+                          disabled={!clickable}
+                          className={`aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all relative
+                            ${!clickable
+                              ? 'text-soft-muted/40 cursor-not-allowed'
+                              : isSelected
+                                ? 'bg-accent text-white shadow-lg shadow-accent/30'
+                                : 'text-soft hover:bg-accent/20 hover:text-accent'
+                            }
+                            ${today && !isSelected ? 'ring-2 ring-accent/50' : ''}
                           `}
                         >
-                          {formatDayNumber(date)}
-                        </div>
-                        {available && !past && (
-                          <div className="text-[10px] text-accent mt-1 font-medium">Available</div>
-                        )}
+                          {date.getDate()}
+                          {clickable && !isSelected && (
+                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="mt-4 flex items-center gap-4 text-xs text-soft-muted">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-accent" />
+                      <span>Available</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded ring-2 ring-accent/50 flex items-center justify-center text-[10px]">
+                        {today.getDate()}
                       </div>
-                    )
-                  })}
-
-                  {/* Time slots */}
-                  {timeSlots.map((slot, slotIndex) => (
-                    <>
-                      {/* Time label */}
-                      <div key={`time-${slotIndex}`} className="bg-navy-50 p-2 flex items-center justify-end pr-3 rounded-l-lg mt-1">
-                        <span className="text-xs font-medium text-soft">{slot.time}</span>
-                      </div>
-
-                      {/* Day cells */}
-                      {calendarDates.map((date, dayIndex) => {
-                        const available = isAvailableDay(date)
-                        const past = isPast(date)
-                        const booked = isSlotBooked(date, slot.time)
-                        const blocked = isSlotBlocked(date, slot.time)
-                        const unavailable = !available || past || booked || blocked
-                        const selected = selectedDate && isSameDay(date, selectedDate)
-                        const timeSelected = selected && selectedTime === slot.time
-
-                        return (
-                          <div
-                            key={`${slotIndex}-${dayIndex}`}
-                            className={`p-1 mt-1 ${dayIndex === 6 ? 'rounded-r-lg' : ''}`}
-                          >
-                            {available && !past ? (
-                              <button
-                                onClick={() => {
-                                  if (!booked && !blocked) {
-                                    handleDateSelect(date)
-                                    handleTimeSelect(slot.time)
-                                  }
-                                }}
-                                disabled={booked || blocked}
-                                className={`w-full h-10 rounded-lg text-xs font-medium transition-all
-                                  ${booked || blocked
-                                    ? 'bg-white/5 text-soft-muted/40 cursor-not-allowed'
-                                    : timeSelected
-                                      ? 'bg-accent text-white shadow-lg shadow-accent/40 scale-105 ring-2 ring-accent/50'
-                                      : 'bg-accent/15 border-2 border-accent/30 text-accent hover:bg-accent/25 hover:border-accent/50 hover:scale-102'
-                                  }
-                                `}
-                              >
-                                {blocked ? '—' : booked ? '—' : timeSelected ? '✓ ' + slot.time : 'Select'}
-                              </button>
-                            ) : (
-                              <div className="w-full h-10 rounded-lg bg-white/5 opacity-30" />
-                            )}
-                          </div>
-                        )
-                      })}
-                    </>
-                  ))}
+                      <span>Today</span>
+                    </div>
+                  </div>
                 </div>
 
-              </>
+                {/* Right: Time Slots */}
+                <div>
+                  <h3 className="text-lg font-semibold text-soft mb-4">
+                    {selectedDate
+                      ? `Available Times for ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+                      : 'Select a date to see times'
+                    }
+                  </h3>
+
+                  {selectedDate ? (
+                    availableTimeSlots.length > 0 ? (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                        {availableTimeSlots.map(slot => {
+                          const isSelected = selectedTime === slot.time
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() => handleTimeSelect(slot.time)}
+                              className={`w-full py-3 px-4 rounded-lg text-left transition-all flex items-center justify-between
+                                ${isSelected
+                                  ? 'bg-accent text-white shadow-lg shadow-accent/30'
+                                  : 'bg-accent/15 border border-accent/30 text-accent hover:bg-accent/25 hover:border-accent/50'
+                                }
+                              `}
+                            >
+                              <span className="font-medium">{slot.time}</span>
+                              <span className={`text-sm ${isSelected ? 'text-white/90' : 'opacity-70'}`}>
+                                {isSelected ? '✓ Selected' : 'Available'}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-soft-muted">
+                        <p>No available times for this date.</p>
+                        <p className="text-sm mt-2">Please select another date.</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center py-12 text-soft-muted">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                      </div>
+                      <p>Select a date from the calendar</p>
+                      <p className="text-sm mt-1">to view available time slots</p>
+                    </div>
+                  )}
+
+                  {/* Time zone note */}
+                  <p className="text-soft-muted text-xs mt-4 text-center">
+                    All times shown in Eastern Time (EST)
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </AnimatedSection>
-
       </section>
 
       {/* Booking Modal */}

@@ -126,6 +126,30 @@ const IconHome = () => (
   </svg>
 )
 
+const IconCalendarPlus = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+    <line x1="12" y1="14" x2="12" y2="18" />
+    <line x1="10" y1="16" x2="14" y2="16" />
+  </svg>
+)
+
+const IconCheck = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
+const IconSpinner = () => (
+  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+  </svg>
+)
+
 const statusColors = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   confirmed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -152,6 +176,10 @@ export default function AdminPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragAction, setDragAction] = useState<'block' | 'unblock' | null>(null)
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
+
+  // Google Calendar state
+  const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
+  const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -275,7 +303,7 @@ export default function AdminPage() {
 
   const handleDragEnter = (date: string, time: string) => {
     if (isDragging) {
-      setSelectedSlots(prev => new Set([...prev, `${date}|${time}`]))
+      setSelectedSlots(prev => new Set([...Array.from(prev), `${date}|${time}`]))
     }
   }
 
@@ -288,7 +316,7 @@ export default function AdminPage() {
     }
 
     // Apply action to all selected slots
-    for (const slot of selectedSlots) {
+    for (const slot of Array.from(selectedSlots)) {
       const [date, time] = slot.split('|')
       const isBooked = isSlotBooked(date, time)
       if (!isBooked) {
@@ -368,6 +396,37 @@ export default function AdminPage() {
     setAuthToken('')
     setPassword('')
     setBookings([])
+  }
+
+  const addToGoogleCalendar = async (booking: Booking) => {
+    setCalendarLoading(booking.id)
+    setCalendarSuccess(null)
+
+    try {
+      const response = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ booking })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add to calendar')
+      }
+
+      setCalendarSuccess(booking.id)
+      // Clear success indicator after 3 seconds
+      setTimeout(() => setCalendarSuccess(null), 3000)
+    } catch (error) {
+      console.error('Calendar error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to add to Google Calendar')
+    } finally {
+      setCalendarLoading(null)
+    }
   }
 
   const exportToCSV = () => {
@@ -710,16 +769,39 @@ export default function AdminPage() {
                             </select>
                           </td>
                           <td className="p-4 text-right">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteBooking(booking.id)
-                              }}
-                              className="p-2 rounded-lg hover:bg-red-500/10 text-soft-muted hover:text-red-400 transition-colors"
-                              title="Delete"
-                            >
-                              <IconTrash />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  addToGoogleCalendar(booking)
+                                }}
+                                disabled={calendarLoading === booking.id || calendarSuccess === booking.id}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  calendarSuccess === booking.id
+                                    ? 'bg-green-500/10 text-green-400'
+                                    : 'hover:bg-accent/10 text-soft-muted hover:text-accent'
+                                } disabled:cursor-not-allowed`}
+                                title="Add to Google Calendar"
+                              >
+                                {calendarLoading === booking.id ? (
+                                  <IconSpinner />
+                                ) : calendarSuccess === booking.id ? (
+                                  <IconCheck />
+                                ) : (
+                                  <IconCalendarPlus />
+                                )}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteBooking(booking.id)
+                                }}
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-soft-muted hover:text-red-400 transition-colors"
+                                title="Delete"
+                              >
+                                <IconTrash />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -780,18 +862,46 @@ export default function AdminPage() {
                       <p className="text-soft-muted text-sm mt-1">{formatCreatedAt(selectedBooking.createdAt)}</p>
                     </div>
 
-                    <div className="pt-4 border-t border-white/5 flex gap-2">
-                      <a
-                        href={`mailto:${selectedBooking.email}?subject=Your Oasis Advisory Consultation&body=Hi ${selectedBooking.name},%0D%0A%0D%0AThank you for booking a consultation with Oasis Advisory!%0D%0A%0D%0AYour call is scheduled for ${formatDate(selectedBooking.date)} at ${selectedBooking.time} EST.%0D%0A%0D%0ABest regards,%0D%0AOasis Advisory Team`}
-                        className="btn-primary text-sm !py-2 !px-4 flex-1 text-center"
-                      >
-                        Send Email
-                      </a>
+                    <div className="pt-4 border-t border-white/5 space-y-2">
+                      <div className="flex gap-2">
+                        <a
+                          href={`mailto:${selectedBooking.email}?subject=Your Oasis Advisory Consultation&body=Hi ${selectedBooking.name},%0D%0A%0D%0AThank you for booking a consultation with Oasis Advisory!%0D%0A%0D%0AYour call is scheduled for ${formatDate(selectedBooking.date)} at ${selectedBooking.time} EST.%0D%0A%0D%0ABest regards,%0D%0AOasis Advisory Team`}
+                          className="btn-primary text-sm !py-2 !px-4 flex-1 text-center"
+                        >
+                          Send Email
+                        </a>
+                        <button
+                          onClick={() => addToGoogleCalendar(selectedBooking)}
+                          disabled={calendarLoading === selectedBooking.id || calendarSuccess === selectedBooking.id}
+                          className={`px-4 py-2 rounded-full text-sm flex items-center gap-2 transition-colors ${
+                            calendarSuccess === selectedBooking.id
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : 'border border-accent/30 text-accent hover:bg-accent/10'
+                          } disabled:cursor-not-allowed`}
+                        >
+                          {calendarLoading === selectedBooking.id ? (
+                            <>
+                              <IconSpinner />
+                              Adding...
+                            </>
+                          ) : calendarSuccess === selectedBooking.id ? (
+                            <>
+                              <IconCheck />
+                              Added
+                            </>
+                          ) : (
+                            <>
+                              <IconCalendarPlus />
+                              Add to Calendar
+                            </>
+                          )}
+                        </button>
+                      </div>
                       <button
                         onClick={() => deleteBooking(selectedBooking.id)}
-                        className="px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-sm"
+                        className="w-full px-4 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-sm"
                       >
-                        Delete
+                        Delete Booking
                       </button>
                     </div>
                   </div>
@@ -808,7 +918,7 @@ export default function AdminPage() {
           </div>
         </div>
           </>
-        ) : (
+        ) : activeTab === 'block' ? (
           /* Block Times Tab */
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-6">
