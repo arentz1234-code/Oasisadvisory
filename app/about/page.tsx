@@ -111,11 +111,12 @@ export default function AboutPage() {
               where to start.
             </p>
             <p>
-              We met at Auburn University — Andrew studying finance at the Harbert College of Business,
-              Charlie diving deep into technology. After graduation, our paths took us in different
-              directions: Andrew built Southland Aerials, learning firsthand the challenges of running
-              a small business, while Charlie pursued advanced AI studies at Carnegie Mellon and gained
-              real-world experience deploying computer vision systems at UltronAI.
+              We met at Auburn University, both studying finance in the Harbert College of Business.
+              After graduation, our paths took us in different directions. Andrew headed to flight school,
+              earning his Commercial Pilot Certificate and CFI rating while building Southland Aerials,
+              learning firsthand the challenges of running a small business. Charlie pursued advanced AI
+              studies at Carnegie Mellon and gained real-world experience deploying computer vision systems
+              at UltronAI.
             </p>
             <p>
               But we stayed connected, and we kept coming back to the same conversation: why is it so
@@ -124,7 +125,11 @@ export default function AboutPage() {
               reality of running a small business.
             </p>
             <p>
-              That&apos;s Oasis Advisory. We&apos;re here to be that bridge.
+              That&apos;s Oasis Advisory. Andrew brings the business perspective — understanding the
+              day-to-day operations, client relationships, and growth challenges that small business
+              owners face. Charlie brings the technical expertise — knowing which AI solutions actually
+              work and how to implement them without overcomplicating things. Together, we&apos;re here
+              to be that bridge.
             </p>
           </div>
         </AnimatedSection>
