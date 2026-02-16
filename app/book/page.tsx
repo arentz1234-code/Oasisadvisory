@@ -288,7 +288,7 @@ export default function BookPage() {
             ) : (
               <>
                 {/* Calendar Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xl font-bold text-soft">{currentMonth}</h2>
                   <div className="flex items-center gap-2">
                     <button
@@ -316,11 +316,32 @@ export default function BookPage() {
                   </div>
                 </div>
 
+                <p className="text-soft-muted text-sm mb-4">
+                  Select an available time slot below to book your free consultation.
+                </p>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-4 mb-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-accent/20 border-2 border-accent/40" />
+                    <span className="text-soft-muted">Available</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-accent shadow-lg shadow-accent/50" />
+                    <span className="text-soft-muted">Selected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-white/5" />
+                    <span className="text-soft-muted">Unavailable</span>
+                  </div>
+                </div>
+
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-8 gap-px bg-white/5 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-8 gap-1 rounded-lg overflow-hidden">
                   {/* Time column header */}
-                  <div className="bg-navy p-2 text-center">
-                    <span className="text-xs text-soft-muted">EST</span>
+                  <div className="bg-navy-50 p-3 text-center rounded-lg">
+                    <span className="text-xs font-medium text-soft-muted">TIME</span>
+                    <div className="text-[10px] text-soft-muted/60 mt-1">EST</div>
                   </div>
 
                   {/* Day headers */}
@@ -334,20 +355,29 @@ export default function BookPage() {
                     return (
                       <div
                         key={i}
-                        className={`bg-navy p-2 text-center ${unavailable ? 'opacity-40' : ''}`}
+                        className={`p-2 text-center rounded-lg transition-all ${
+                          unavailable
+                            ? 'bg-white/5 opacity-40'
+                            : selected
+                              ? 'bg-accent/10 ring-2 ring-accent/30'
+                              : 'bg-navy-50'
+                        }`}
                       >
-                        <div className="text-xs text-soft-muted uppercase tracking-wider">
+                        <div className={`text-xs uppercase tracking-wider ${available && !past ? 'text-soft' : 'text-soft-muted'}`}>
                           {formatDayName(date)}
                         </div>
                         <div
-                          className={`text-lg font-semibold mt-1 w-8 h-8 mx-auto flex items-center justify-center rounded-full
-                            ${today && available ? 'bg-accent text-white' : ''}
+                          className={`text-xl font-bold mt-1 w-10 h-10 mx-auto flex items-center justify-center rounded-full transition-all
+                            ${today && available && !past ? 'bg-accent text-white shadow-lg shadow-accent/30' : ''}
                             ${selected && !today ? 'bg-accent/20 text-accent' : ''}
                             ${!today && !selected ? 'text-soft' : ''}
                           `}
                         >
                           {formatDayNumber(date)}
                         </div>
+                        {available && !past && (
+                          <div className="text-[10px] text-accent mt-1 font-medium">Available</div>
+                        )}
                       </div>
                     )
                   })}
@@ -356,8 +386,8 @@ export default function BookPage() {
                   {timeSlots.map((slot, slotIndex) => (
                     <>
                       {/* Time label */}
-                      <div key={`time-${slotIndex}`} className="bg-navy p-2 text-right pr-3 border-t border-white/5">
-                        <span className="text-xs text-soft-muted">{slot.time}</span>
+                      <div key={`time-${slotIndex}`} className="bg-navy-50 p-2 flex items-center justify-end pr-3 rounded-l-lg mt-1">
+                        <span className="text-xs font-medium text-soft">{slot.time}</span>
                       </div>
 
                       {/* Day cells */}
@@ -373,11 +403,9 @@ export default function BookPage() {
                         return (
                           <div
                             key={`${slotIndex}-${dayIndex}`}
-                            className={`bg-navy border-t border-white/5 p-1
-                              ${unavailable ? 'opacity-30' : ''}
-                            `}
+                            className={`p-1 mt-1 ${dayIndex === 6 ? 'rounded-r-lg' : ''}`}
                           >
-                            {available && !past && (
+                            {available && !past ? (
                               <button
                                 onClick={() => {
                                   if (!booked && !blocked) {
@@ -386,17 +414,19 @@ export default function BookPage() {
                                   }
                                 }}
                                 disabled={booked || blocked}
-                                className={`w-full h-full min-h-[32px] rounded text-xs transition-all
+                                className={`w-full h-10 rounded-lg text-xs font-medium transition-all
                                   ${booked || blocked
-                                    ? 'bg-white/5 text-soft-muted/50 cursor-not-allowed line-through'
+                                    ? 'bg-white/5 text-soft-muted/40 cursor-not-allowed'
                                     : timeSelected
-                                      ? 'bg-accent text-white'
-                                      : 'hover:bg-accent/20 text-transparent hover:text-accent'
+                                      ? 'bg-accent text-white shadow-lg shadow-accent/40 scale-105 ring-2 ring-accent/50'
+                                      : 'bg-accent/15 border-2 border-accent/30 text-accent hover:bg-accent/25 hover:border-accent/50 hover:scale-102'
                                   }
                                 `}
                               >
-                                {blocked ? 'Blocked' : booked ? 'Booked' : timeSelected ? slot.time : 'Select'}
+                                {blocked ? '—' : booked ? '—' : timeSelected ? '✓ ' + slot.time : 'Select'}
                               </button>
+                            ) : (
+                              <div className="w-full h-10 rounded-lg bg-white/5 opacity-30" />
                             )}
                           </div>
                         )
