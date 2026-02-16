@@ -22,6 +22,17 @@ try {
 
 const BOOKINGS_KEY = 'oasis:bookings'
 const BLOCKED_KEY = 'oasis:blocked'
+const SETTINGS_KEY = 'oasis:settings'
+
+interface Settings {
+  availableDays: number[] // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  availableDays: [1, 2, 3, 4, 5] // Mon-Fri by default
+}
+
+let memorySettings: Settings = { ...DEFAULT_SETTINGS }
 
 interface BlockedSlot {
   id: string
@@ -96,6 +107,32 @@ async function saveBlockedSlots(blocked: BlockedSlot[]) {
   }
 }
 
+async function getSettings(): Promise<Settings> {
+  try {
+    if (redis) {
+      const settings = await redis.get(SETTINGS_KEY)
+      return settings || { ...DEFAULT_SETTINGS }
+    }
+    return memorySettings
+  } catch (error) {
+    console.error('Error reading settings:', error)
+    return memorySettings
+  }
+}
+
+async function saveSettings(settings: Settings) {
+  try {
+    if (redis) {
+      await redis.set(SETTINGS_KEY, settings)
+    } else {
+      memorySettings = settings
+    }
+  } catch (error) {
+    console.error('Error saving settings:', error)
+    memorySettings = settings
+  }
+}
+
 // Send email notification for new bookings
 async function sendNotification(booking: Booking) {
   // Log the booking details (visible in Vercel function logs)
@@ -116,10 +153,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const bookedOnly = searchParams.get('booked') === 'true'
 
-  // Public endpoint: just return booked and blocked slots (date + time only)
+  // Public endpoint: just return booked and blocked slots (date + time only) plus settings
   if (bookedOnly) {
     const bookings = await getBookings()
     const blocked = await getBlockedSlots()
+    const settings = await getSettings()
     const bookedSlots = bookings
       .filter(b => b.status !== 'cancelled')
       .map(b => ({
@@ -130,7 +168,7 @@ export async function GET(request: NextRequest) {
       date: b.date,
       time: b.time,
     }))
-    return NextResponse.json({ bookedSlots, blockedSlots })
+    return NextResponse.json({ bookedSlots, blockedSlots, settings })
   }
 
   // Admin endpoint: requires auth, returns full details
@@ -143,7 +181,8 @@ export async function GET(request: NextRequest) {
 
   const bookings = await getBookings()
   const blockedSlots = await getBlockedSlots()
-  return NextResponse.json({ bookings, blockedSlots, storageType: redis ? 'redis' : 'memory' })
+  const settings = await getSettings()
+  return NextResponse.json({ bookings, blockedSlots, settings, storageType: redis ? 'redis' : 'memory' })
 }
 
 // POST - Create a new booking
@@ -207,7 +246,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, status, action, date, time } = body
+    const { id, status, action, date, time, availableDays } = body
+
+    // Handle settings update
+    if (action === 'updateSettings') {
+      const settings = await getSettings()
+      if (availableDays !== undefined) {
+        settings.availableDays = availableDays
+      }
+      await saveSettings(settings)
+      return NextResponse.json({ success: true, settings })
+    }
 
     // Handle block/unblock actions
     if (action === 'block') {

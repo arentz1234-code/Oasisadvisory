@@ -128,11 +128,7 @@ function isWeekend(date: Date) {
   return day === 0 || day === 6
 }
 
-// Allow bookings on Monday (1) through Friday (5) - weekdays only
-function isAvailableDay(date: Date) {
-  const day = date.getDay()
-  return day >= 1 && day <= 5
-}
+// Check if day is available (configured via admin)
 
 interface BookedSlot {
   date: string
@@ -155,6 +151,7 @@ export default function BookPage() {
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
+  const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5]) // Default Mon-Fri
 
   const calendarDates = useMemo(() => getCalendarDates(weekOffset), [weekOffset])
   const currentMonth = formatMonthYear(calendarDates[3])
@@ -168,6 +165,9 @@ export default function BookPage() {
           const data = await response.json()
           setBookedSlots(data.bookedSlots || [])
           setBlockedSlots(data.blockedSlots || [])
+          if (data.settings?.availableDays) {
+            setAvailableDays(data.settings.availableDays)
+          }
         }
       } catch (error) {
         console.error('Failed to fetch slots:', error)
@@ -175,6 +175,11 @@ export default function BookPage() {
     }
     fetchSlots()
   }, [bookingComplete]) // Refetch after a booking is made
+
+  // Check if day is available (configured via admin)
+  const isAvailableDay = (date: Date) => {
+    return availableDays.includes(date.getDay())
+  }
 
   // Check if a specific date/time is booked
   const isSlotBooked = (date: Date, time: string) => {

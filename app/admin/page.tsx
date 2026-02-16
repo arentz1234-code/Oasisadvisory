@@ -40,11 +40,7 @@ function generateTimeSlots() {
 
 const timeSlots = generateTimeSlots()
 
-// Weekdays (Mon-Fri) are available
-function isAvailableDay(date: Date) {
-  const day = date.getDay()
-  return day >= 1 && day <= 5
-}
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function getWeekDates(weekOffset: number = 0) {
   const today = new Date()
@@ -148,8 +144,9 @@ export default function AdminPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'created'>('created')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
-  const [activeTab, setActiveTab] = useState<'bookings' | 'block'>('bookings')
+  const [activeTab, setActiveTab] = useState<'bookings' | 'block' | 'settings'>('bookings')
   const [blockWeekOffset, setBlockWeekOffset] = useState(0)
+  const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -166,6 +163,9 @@ export default function AdminPage() {
         const data = await response.json()
         setBookings(data.bookings || [])
         setBlockedSlots(data.blockedSlots || [])
+        if (data.settings?.availableDays) {
+          setAvailableDays(data.settings.availableDays)
+        }
       } else {
         setLoginError('Invalid password')
       }
@@ -185,12 +185,44 @@ export default function AdminPage() {
         const data = await response.json()
         setBookings(data.bookings || [])
         setBlockedSlots(data.blockedSlots || [])
+        if (data.settings?.availableDays) {
+          setAvailableDays(data.settings.availableDays)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const toggleAvailableDay = async (day: number) => {
+    const newDays = availableDays.includes(day)
+      ? availableDays.filter(d => d !== day)
+      : [...availableDays, day].sort((a, b) => a - b)
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          action: 'updateSettings',
+          availableDays: newDays
+        })
+      })
+      if (response.ok) {
+        setAvailableDays(newDays)
+      }
+    } catch (error) {
+      console.error('Failed to update settings:', error)
+    }
+  }
+
+  const isAvailableDay = (date: Date) => {
+    return availableDays.includes(date.getDay())
   }
 
   const toggleBlockSlot = async (date: string, time?: string) => {
@@ -450,6 +482,16 @@ export default function AdminPage() {
             }`}
           >
             Block Times
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'bg-accent text-white'
+                : 'bg-white/5 text-soft-muted hover:bg-white/10'
+            }`}
+          >
+            Settings
           </button>
         </div>
 
@@ -731,7 +773,7 @@ export default function AdminPage() {
             </div>
 
             <p className="text-soft-muted text-sm mb-4">
-              Click on a time slot to block/unblock it. Weekdays (Mon-Fri) are available for booking.
+              Click on a time slot to block/unblock it. Available days: {availableDays.map(d => DAY_NAMES[d]).join(', ') || 'None'}.
             </p>
 
             <div className="overflow-x-auto">
@@ -813,7 +855,54 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : activeTab === 'settings' ? (
+          /* Settings Tab */
+          <div className="glass-card p-6 max-w-2xl">
+            <h2 className="text-xl font-bold text-soft mb-6">Booking Settings</h2>
+
+            <div className="space-y-6">
+              {/* Available Days */}
+              <div>
+                <h3 className="text-soft font-medium mb-3">Available Days</h3>
+                <p className="text-soft-muted text-sm mb-4">
+                  Select which days of the week clients can book consultations.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DAY_NAMES.map((day, index) => (
+                    <button
+                      key={day}
+                      onClick={() => toggleAvailableDay(index)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                        availableDays.includes(index)
+                          ? 'bg-accent text-white'
+                          : 'bg-white/5 text-soft-muted hover:bg-white/10'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current Schedule Summary */}
+              <div className="pt-6 border-t border-white/5">
+                <h3 className="text-soft font-medium mb-3">Current Schedule</h3>
+                <div className="glass-card p-4 bg-white/5">
+                  <p className="text-soft-muted text-sm">
+                    <span className="text-soft font-medium">Available: </span>
+                    {availableDays.length > 0
+                      ? availableDays.map(d => DAY_NAMES[d]).join(', ')
+                      : 'No days selected'}
+                  </p>
+                  <p className="text-soft-muted text-sm mt-2">
+                    <span className="text-soft font-medium">Hours: </span>
+                    9:00 AM - 3:30 PM EST (30-min slots)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )
